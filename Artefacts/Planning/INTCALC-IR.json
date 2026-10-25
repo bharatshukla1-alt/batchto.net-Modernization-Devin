@@ -1,0 +1,1083 @@
+{
+  "target_design_specification": {
+    "document_metadata": {
+      "document_type": "Mainframe To PySpark Target Design Specification",
+      "source_program": "CBACT01C, CBACT02C, CBACT04C",
+      "generation_timestamp": "2026-07-09T00:00:00Z",
+      "confidence_level": "HIGH"
+    },
+    "source_system_summary": {
+      "application_name": "CardDemo",
+      "processing_description": "Batch COBOL application suite: CBACT01C reads account records and writes multiple output file formats; CBACT02C reads and prints card data; CBACT04C computes monthly interest charges based on transaction category balances and updates account balances.",
+      "source_evidence": [
+        "BRE/CBACT01C.json: program_description",
+        "BRE/CBACT02C.json: program_description",
+        "BRE/CBACT04C.json: program_description",
+        "TechSummary/technical_summary.json: application_name=CardDemo"
+      ]
+    },
+    "mainframe_to_pyspark_mapping": [
+      {
+        "source_construct": "Sequential File",
+        "source_reference": "OUT-FILE (CBACT01C), ARRY-FILE (CBACT01C), VBRC-FILE (CBACT01C), TRANSACT-FILE (CBACT04C)",
+        "target_construct": "DataFrame",
+        "conversion_pattern": "spark.read.parquet() or spark.createDataFrame()",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "VSAM KSDS Indexed Sequential File",
+        "source_reference": "ACCTFILE-FILE (CBACT01C, CBACT04C), CARDFILE-FILE (CBACT02C), TCATBAL-FILE (CBACT04C), XREF-FILE (CBACT04C), DISCGRP-FILE (CBACT04C)",
+        "target_construct": "DataFrame with primary key columns",
+        "conversion_pattern": "spark.read.parquet() filtered by key; or load from Delta/Iceberg table",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "COBOL Record Layout",
+        "source_reference": "CVACT01Y (Account), CVACT02Y (Card), CVTRA01Y (Trans Category Balance), CVTRA02Y (Disclosure Group), CVACT03Y (Card Cross-Ref), CVTRA05Y (Transaction)",
+        "target_construct": "Spark StructType Schema",
+        "conversion_pattern": "StructType([StructField('column_name', DataType(), nullable)])",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "SORT",
+        "source_reference": "CBACT04C sequential read of TCATBAL-FILE by TRANCAT-ACCT-ID for group boundary detection",
+        "target_construct": "orderBy()",
+        "conversion_pattern": "df.orderBy('TRANCAT_ACCT_ID')",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "PERFORM UNTIL EOF",
+        "source_reference": "CBACT01C: PERFORM UNTIL END-OF-FILE = 'Y' loop; CBACT02C: PERFORM UNTIL END-OF-FILE = 'Y' loop; CBACT04C: PERFORM UNTIL END-OF-FILE = 'Y'",
+        "target_construct": "Iterative DataFrame processing pipeline",
+        "conversion_pattern": "DataFrame iterator or grouped processing with window functions",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "READ FILE",
+        "source_reference": "READ ACCTFILE-FILE, READ CARDFILE-FILE, READ TCATBAL-FILE",
+        "target_construct": "spark.read()",
+        "conversion_pattern": "spark.read.parquet('path').collect() or streaming read",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "WRITE FILE",
+        "source_reference": "WRITE OUT-REC, WRITE ARRY-REC, WRITE VBR-REC, WRITE TRANSACT-REC",
+        "target_construct": "DataFrame.write()",
+        "conversion_pattern": "df.write.mode().parquet() or df.write.mode().format('delta')",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "REWRITE",
+        "source_reference": "CBACT04C: REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD",
+        "target_construct": "merge/upsert logic",
+        "conversion_pattern": "delta.merge().whenMatched().update() or DataFrame.write.mode('overwrite')",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "IF/ELSE",
+        "source_reference": "CBACT01C: IF ACCT-CURR-CYC-DEBIT EQUAL TO ZERO; CBACT04C: IF DIS-INT-RATE NOT = 0",
+        "target_construct": "when()/otherwise()",
+        "conversion_pattern": "when(col('column') == value, new_value).otherwise(original_value)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "SEARCH/Random Access Read",
+        "source_reference": "CBACT04C: READ XREF-FILE, READ DISCGRP-FILE using keys",
+        "target_construct": "lookup join()",
+        "conversion_pattern": "df.join(lookup_df, on=key_columns, how='left')",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "OCCURS DEPENDING ON / OCCURS",
+        "source_reference": "CBACT01C: ARR-ACCT-BAL OCCURS 5 TIMES with ARR-ACCT-CURR-BAL and ARR-ACCT-CURR-CYC-DEBIT",
+        "target_construct": "ArrayType",
+        "conversion_pattern": "StructType([StructField('array_col', ArrayType(StructType(...)))])",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "COMPUTE",
+        "source_reference": "CBACT04C: COMPUTE WS-MONTHLY-INT = (TRAN-CAT-BAL * DIS-INT-RATE) / 1200",
+        "target_construct": "withColumn()",
+        "conversion_pattern": "df.withColumn('monthly_int', (col('tran_cat_bal') * col('dis_int_rate')) / 1200)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "MOVE / VALUE ASSIGNMENT",
+        "source_reference": "CBACT01C: MOVE ACCT-REISSUE-DATE TO OUT-ACCT-REISSUE-DATE",
+        "target_construct": "select()/withColumn()",
+        "conversion_pattern": "df.select(col('source_col').alias('target_col')) or df.withColumn('target_col', col('source_col'))",
+        "confidence_level": "HIGH"
+      },
+      {
+        "source_construct": "CALL to external program",
+        "source_reference": "CBACT01C: CALL 'COBDATFT' USING CODATECN-REC; CBACT01C/02C/04C: CALL 'CEE3ABD'",
+        "target_construct": "Function/UDF",
+        "conversion_pattern": "spark.udf.register() or pandas_udf for date/error handling",
+        "confidence_level": "MEDIUM"
+      },
+      {
+        "source_construct": "JCL STEP",
+        "source_reference": "READACCT.STEP05 (CBACT01C), READCARD.STEP05 (CBACT02C), INTCALC.STEP15 (CBACT04C)",
+        "target_construct": "PySpark Processing Stage",
+        "conversion_pattern": "Separate PySpark job stage or DAG task",
+        "confidence_level": "HIGH"
+      }
+    ],
+    "input_dataframes": [
+      {
+        "dataframe_name": "ACCTFILE_DF",
+        "source_file": "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS",
+        "source_type": "VSAM KSDS Indexed Sequential",
+        "schema_elements": [
+          {
+            "column_name": "ACCT_ID",
+            "cobol_name": "ACCT-ID",
+            "data_type": "NUMERIC(11)",
+            "pic_clause": "9(11)",
+            "nullable": false
+          },
+          {
+            "column_name": "ACCT_ACTIVE_STATUS",
+            "cobol_name": "ACCT-ACTIVE-STATUS",
+            "data_type": "STRING(1)",
+            "pic_clause": "X(01)",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_CURR_BAL",
+            "cobol_name": "ACCT-CURR-BAL",
+            "data_type": "DECIMAL(10,2)",
+            "pic_clause": "S9(10)V99",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_CREDIT_LIMIT",
+            "cobol_name": "ACCT-CREDIT-LIMIT",
+            "data_type": "DECIMAL(10,2)",
+            "pic_clause": "S9(10)V99",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_CASH_CREDIT_LIMIT",
+            "cobol_name": "ACCT-CASH-CREDIT-LIMIT",
+            "data_type": "DECIMAL(10,2)",
+            "pic_clause": "S9(10)V99",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_OPEN_DATE",
+            "cobol_name": "ACCT-OPEN-DATE",
+            "data_type": "STRING(10)",
+            "pic_clause": "X(10)",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_EXPIRAION_DATE",
+            "cobol_name": "ACCT-EXPIRAION-DATE",
+            "data_type": "STRING(10)",
+            "pic_clause": "X(10)",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_REISSUE_DATE",
+            "cobol_name": "ACCT-REISSUE-DATE",
+            "data_type": "STRING(10)",
+            "pic_clause": "X(10)",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_CURR_CYC_CREDIT",
+            "cobol_name": "ACCT-CURR-CYC-CREDIT",
+            "data_type": "DECIMAL(10,2)",
+            "pic_clause": "S9(10)V99",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_CURR_CYC_DEBIT",
+            "cobol_name": "ACCT-CURR-CYC-DEBIT",
+            "data_type": "DECIMAL(10,2)",
+            "pic_clause": "S9(10)V99",
+            "nullable": true
+          },
+          {
+            "column_name": "ACCT_GROUP_ID",
+            "cobol_name": "ACCT-GROUP-ID",
+            "data_type": "STRING(10)",
+            "pic_clause": "X(10)",
+            "nullable": true
+          }
+        ],
+        "primary_keys": [
+          "ACCT_ID"
+        ],
+        "partition_columns": []
+      },
+      {
+        "dataframe_name": "CARDFILE_DF",
+        "source_file": "AWS.M2.CARDDEMO.CARDDATA.VSAM.KSDS",
+        "source_type": "VSAM KSDS Indexed Sequential",
+        "schema_elements": [
+          {
+            "column_name": "CARD_NUM",
+            "cobol_name": "CARD-NUM",
+            "data_type": "STRING(16)",
+            "pic_clause": "X(16)",
+            "nullable": false
+          },
+          {
+            "column_name": "CARD_ACCT_ID",
+            "cobol_name": "CARD-ACCT-ID",
+            "data_type": "NUMERIC(11)",
+            "pic_clause": "9(11)",
+            "nullable": true
+          },
+          {
+            "column_name": "CARD_CVV_CD",
+            "cobol_name": "CARD-CVV-CD",
+            "data_type": "NUMERIC(3)",
+            "pic_clause": "9(03)",
+            "nullable": true
+          },
+          {
+            "column_name": "CARD_EMBOSSED_NAME",
+            "cobol_name": "CARD-EMBOSSED-NAME",
+            "data_type": "STRING(50)",
+            "pic_clause": "X(50)",
+            "nullable": true
+          },
+          {
+            "column_name": "CARD_EXPIRAION_DATE",
+            "cobol_name": "CARD-EXPIRAION-DATE",
+            "data_type": "STRING(10)",
+            "pic_clause": "X(10)",
+            "nullable": true
+          },
+          {
+            "column_name": "CARD_ACTIVE_STATUS",
+            "cobol_name": "CARD-ACTIVE-STATUS",
+            "data_type": "STRING(1)",
+            "pic_clause": "X(01)",
+            "nullable": true
+          }
+        ],
+        "primary_keys": [
+          "CARD_NUM"
+        ],
+        "partition_columns": []
+      },
+      {
+        "dataframe_name": "TCATBAL_DF",
+        "source_file": "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS",
+        "source_type": "VSAM KSDS Indexed Sequential",
+        "schema_elements": [
+          {
+            "column_name": "TRANCAT_ACCT_ID",
+            "cobol_name": "TRANCAT-ACCT-ID",
+            "data_type": "NUMERIC(11)",
+            "pic_clause": "9(11)",
+            "nullable": false
+          },
+          {
+            "column_name": "TRANCAT_TYPE_CD",
+            "cobol_name": "TRANCAT-TYPE-CD",
+            "data_type": "STRING(2)",
+            "pic_clause": "X(02)",
+            "nullable": false
+          },
+          {
+            "column_name": "TRANCAT_CD",
+            "cobol_name": "TRANCAT-CD",
+            "data_type": "NUMERIC(4)",
+            "pic_clause": "9(04)",
+            "nullable": false
+          },
+          {
+            "column_name": "TRAN_CAT_BAL",
+            "cobol_name": "TRAN-CAT-BAL",
+            "data_type": "DECIMAL(9,2)",
+            "pic_clause": "S9(09)V99",
+            "nullable": true
+          }
+        ],
+        "primary_keys": [
+          "TRANCAT_ACCT_ID",
+          "TRANCAT_TYPE_CD",
+          "TRANCAT_CD"
+        ],
+        "partition_columns": [
+          "TRANCAT_ACCT_ID"
+        ]
+      },
+      {
+        "dataframe_name": "XREF_DF",
+        "source_file": "UNKNOWN",
+        "source_type": "VSAM Indexed File (Random Access)",
+        "schema_elements": [
+          {
+            "column_name": "XREF_ACCT_ID",
+            "cobol_name": "XREF-ACCT-ID",
+            "data_type": "NUMERIC(11)",
+            "pic_clause": "9(11)",
+            "nullable": false
+          },
+          {
+            "column_name": "XREF_CARD_NUM",
+            "cobol_name": "XREF-CARD-NUM",
+            "data_type": "STRING(16)",
+            "pic_clause": "X(16)",
+            "nullable": true
+          },
+          {
+            "column_name": "XREF_CUST_ID",
+            "cobol_name": "XREF-CUST-ID",
+            "data_type": "STRING(10)",
+            "pic_clause": "UNKNOWN",
+            "nullable": true
+          }
+        ],
+        "primary_keys": [
+          "XREF_ACCT_ID"
+        ],
+        "partition_columns": []
+      },
+      {
+        "dataframe_name": "DISCGRP_DF",
+        "source_file": "UNKNOWN",
+        "source_type": "VSAM Indexed File (Random Access)",
+        "schema_elements": [
+          {
+            "column_name": "DIS_ACCT_GROUP_ID",
+            "cobol_name": "DIS-ACCT-GROUP-ID",
+            "data_type": "STRING(10)",
+            "pic_clause": "X(10)",
+            "nullable": false
+          },
+          {
+            "column_name": "DIS_TRAN_TYPE_CD",
+            "cobol_name": "DIS-TRAN-TYPE-CD",
+            "data_type": "STRING(2)",
+            "pic_clause": "X(02)",
+            "nullable": false
+          },
+          {
+            "column_name": "DIS_TRAN_CAT_CD",
+            "cobol_name": "DIS-TRAN-CAT-CD",
+            "data_type": "NUMERIC(4)",
+            "pic_clause": "9(04)",
+            "nullable": false
+          },
+          {
+            "column_name": "DIS_INT_RATE",
+            "cobol_name": "DIS-INT-RATE",
+            "data_type": "DECIMAL(4,2)",
+            "pic_clause": "S9(04)V99",
+            "nullable": true
+          }
+        ],
+        "primary_keys": [
+          "DIS_ACCT_GROUP_ID",
+          "DIS_TRAN_TYPE_CD",
+          "DIS_TRAN_CAT_CD"
+        ],
+        "partition_columns": []
+      }
+    ],
+    "output_dataframes": [
+      {
+        "dataframe_name": "OUTFILE_DF",
+        "target_location": "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP",
+        "schema_elements": [
+          {
+            "column_name": "OUT_ACCT_ID",
+            "cobol_name": "OUT-ACCT-ID",
+            "data_type": "NUMERIC(11)"
+          },
+          {
+            "column_name": "OUT_ACCT_ACTIVE_STATUS",
+            "cobol_name": "OUT-ACCT-ACTIVE-STATUS",
+            "data_type": "STRING(1)"
+          },
+          {
+            "column_name": "OUT_ACCT_CURR_BAL",
+            "cobol_name": "OUT-ACCT-CURR-BAL",
+            "data_type": "DECIMAL(10,2)"
+          },
+          {
+            "column_name": "OUT_ACCT_CREDIT_LIMIT",
+            "cobol_name": "OUT-ACCT-CREDIT-LIMIT",
+            "data_type": "DECIMAL(10,2)"
+          },
+          {
+            "column_name": "OUT_ACCT_CASH_CREDIT_LIMIT",
+            "cobol_name": "OUT-ACCT-CASH-CREDIT-LIMIT",
+            "data_type": "DECIMAL(10,2)"
+          },
+          {
+            "column_name": "OUT_ACCT_OPEN_DATE",
+            "cobol_name": "OUT-ACCT-OPEN-DATE",
+            "data_type": "STRING(10)"
+          },
+          {
+            "column_name": "OUT_ACCT_EXPIRAION_DATE",
+            "cobol_name": "OUT-ACCT-EXPIRAION-DATE",
+            "data_type": "STRING(10)"
+          },
+          {
+            "column_name": "OUT_ACCT_REISSUE_DATE",
+            "cobol_name": "OUT-ACCT-REISSUE-DATE",
+            "data_type": "STRING(8)"
+          },
+          {
+            "column_name": "OUT_ACCT_CURR_CYC_CREDIT",
+            "cobol_name": "OUT-ACCT-CURR-CYC-CREDIT",
+            "data_type": "DECIMAL(10,2)"
+          },
+          {
+            "column_name": "OUT_ACCT_CURR_CYC_DEBIT",
+            "cobol_name": "OUT-ACCT-CURR-CYC-DEBIT",
+            "data_type": "DECIMAL(10,2)"
+          },
+          {
+            "column_name": "OUT_ACCT_GROUP_ID",
+            "cobol_name": "OUT-ACCT-GROUP-ID",
+            "data_type": "STRING(10)"
+          }
+        ]
+      },
+      {
+        "dataframe_name": "ARRYFILE_DF",
+        "target_location": "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS",
+        "schema_elements": [
+          {
+            "column_name": "ARR_ACCT_ID",
+            "cobol_name": "ARR-ACCT-ID",
+            "data_type": "NUMERIC(11)"
+          },
+          {
+            "column_name": "ARR_ACCT_CURR_BAL_ARRAY",
+            "cobol_name": "ARR-ACCT-BAL OCCURS 5",
+            "data_type": "ARRAY<DECIMAL(10,2)>"
+          },
+          {
+            "column_name": "ARR_ACCT_CURR_CYC_DEBIT_ARRAY",
+            "cobol_name": "ARR-ACCT-CURR-CYC-DEBIT OCCURS 5",
+            "data_type": "ARRAY<DECIMAL(10,2)>"
+          }
+        ]
+      },
+      {
+        "dataframe_name": "VBRCFILE_DF",
+        "target_location": "AWS.M2.CARDDEMO.ACCTDATA.VBPS",
+        "schema_elements": [
+          {
+            "column_name": "RECORD_TYPE",
+            "cobol_name": "VBR_REC_TYPE",
+            "data_type": "STRING",
+            "note": "Type 1: 12-byte record (ACCT_ID + ACTIVE_STATUS); Type 2: 39-byte record (ACCT_ID + CURR_BAL + CREDIT_LIMIT + REISSUE_YYYY)"
+          },
+          {
+            "column_name": "VB1_ACCT_ID",
+            "cobol_name": "VB1-ACCT-ID",
+            "data_type": "NUMERIC(11)",
+            "note": "Type 1 record only"
+          },
+          {
+            "column_name": "VB1_ACCT_ACTIVE_STATUS",
+            "cobol_name": "VB1-ACCT-ACTIVE-STATUS",
+            "data_type": "STRING(1)",
+            "note": "Type 1 record only"
+          },
+          {
+            "column_name": "VB2_ACCT_ID",
+            "cobol_name": "VB2-ACCT-ID",
+            "data_type": "NUMERIC(11)",
+            "note": "Type 2 record only"
+          },
+          {
+            "column_name": "VB2_ACCT_CURR_BAL",
+            "cobol_name": "VB2-ACCT-CURR-BAL",
+            "data_type": "DECIMAL(10,2)",
+            "note": "Type 2 record only"
+          },
+          {
+            "column_name": "VB2_ACCT_CREDIT_LIMIT",
+            "cobol_name": "VB2-ACCT-CREDIT-LIMIT",
+            "data_type": "DECIMAL(10,2)",
+            "note": "Type 2 record only"
+          },
+          {
+            "column_name": "VB2_ACCT_REISSUE_YYYY",
+            "cobol_name": "VB2-ACCT-REISSUE-YYYY",
+            "data_type": "STRING(4)",
+            "note": "Type 2 record only - extracted from reissue date"
+          }
+        ]
+      },
+      {
+        "dataframe_name": "TRANSACT_DF",
+        "target_location": "AWS.M2.CARDDEMO.SYSTRAN(+1)",
+        "schema_elements": [
+          {
+            "column_name": "TRAN_ID",
+            "cobol_name": "TRAN-ID",
+            "data_type": "STRING",
+            "note": "Concatenation of PARM_DATE + WS_TRANID_SUFFIX"
+          },
+          {
+            "column_name": "TRAN_TYPE_CD",
+            "cobol_name": "TRAN-TYPE-CD",
+            "data_type": "STRING(2)",
+            "note": "Fixed value '01' for interest transactions"
+          },
+          {
+            "column_name": "TRAN_CAT_CD",
+            "cobol_name": "TRAN-CAT-CD",
+            "data_type": "NUMERIC(4)",
+            "note": "Fixed value '05' for interest transactions"
+          },
+          {
+            "column_name": "TRAN_SOURCE",
+            "cobol_name": "TRAN-SOURCE",
+            "data_type": "STRING",
+            "note": "Fixed value 'System' for generated interest transactions"
+          },
+          {
+            "column_name": "TRAN_DESC",
+            "cobol_name": "TRAN-DESC",
+            "data_type": "STRING",
+            "note": "Format: 'Int. for a/c {ACCT_ID}'"
+          },
+          {
+            "column_name": "TRAN_AMT",
+            "cobol_name": "TRAN-AMT",
+            "data_type": "DECIMAL(9,2)",
+            "note": "Computed monthly interest amount (WS_MONTHLY_INT)"
+          },
+          {
+            "column_name": "TRAN_CARD_NUM",
+            "cobol_name": "TRAN-CARD-NUM",
+            "data_type": "STRING(16)",
+            "note": "Card number from XREF_CARD_NUM lookup"
+          }
+        ]
+      }
+    ],
+    "join_specifications": [
+      {
+        "join_id": "J001",
+        "join_type": "left",
+        "left_dataframe": "TCATBAL_DF",
+        "right_dataframe": "ACCTFILE_DF",
+        "join_keys": [
+          {
+            "left_key": "TRANCAT_ACCT_ID",
+            "right_key": "ACCT_ID"
+          }
+        ],
+        "business_purpose": "Retrieve account group ID and current balance for interest rate lookup and balance update",
+        "source_evidence": "CBACT04C paragraph 1100-GET-ACCT-DATA; BRE BR001",
+        "confidence_level": "HIGH"
+      },
+      {
+        "join_id": "J002",
+        "join_type": "left",
+        "left_dataframe": "TCATBAL_DF",
+        "right_dataframe": "XREF_DF",
+        "join_keys": [
+          {
+            "left_key": "TRANCAT_ACCT_ID",
+            "right_key": "XREF_ACCT_ID"
+          }
+        ],
+        "business_purpose": "Retrieve card number for transaction record population",
+        "source_evidence": "CBACT04C paragraph 1110-GET-XREF-DATA; BRE BR006",
+        "confidence_level": "HIGH"
+      },
+      {
+        "join_id": "J003",
+        "join_type": "left",
+        "left_dataframe": "TCATBAL_DF",
+        "right_dataframe": "DISCGRP_DF",
+        "join_keys": [
+          {
+            "left_key": "ACCT_GROUP_ID",
+            "right_key": "DIS_ACCT_GROUP_ID"
+          },
+          {
+            "left_key": "TRANCAT_TYPE_CD",
+            "right_key": "DIS_TRAN_TYPE_CD"
+          },
+          {
+            "left_key": "TRANCAT_CD",
+            "right_key": "DIS_TRAN_CAT_CD"
+          }
+        ],
+        "business_purpose": "Lookup applicable interest rate for transaction category balance",
+        "source_evidence": "CBACT04C paragraph 1200-GET-INTEREST-RATE; BRE BR001, BR002",
+        "confidence_level": "HIGH"
+      }
+    ],
+    "transformation_specifications": [
+      {
+        "transformation_id": "TR001",
+        "source_logic": "IF ACCT-CURR-CYC-DEBIT EQUAL TO ZERO THEN MOVE 2525.00 TO OUT-ACCT-CURR-CYC-DEBIT ENDIF",
+        "pyspark_logic": "when(col('ACCT_CURR_CYC_DEBIT') == 0, lit(2525.00)).otherwise(col('ACCT_CURR_CYC_DEBIT'))",
+        "target_columns": [
+          "OUT_ACCT_CURR_CYC_DEBIT"
+        ],
+        "source_reference": "CBACT01C paragraph 1300-POPUL-ACCT-RECORD; BRE BR003",
+        "confidence_level": "HIGH"
+      },
+      {
+        "transformation_id": "TR002",
+        "source_logic": "MOVE ACCT-REISSUE-DATE TO CODATECN-INP-DATE WITH TYPE='2' AND OUTTYPE='2'; CALL 'COBDATFT'; MOVE CODATECN-0UT-DATE TO OUT-ACCT-REISSUE-DATE",
+        "pyspark_logic": "to_date(substring(col('ACCT_REISSUE_DATE'), 1, 10), 'yyyy-MM-dd').cast('string').regexp_replace('-', '') or UDF call to date format conversion",
+        "target_columns": [
+          "OUT_ACCT_REISSUE_DATE"
+        ],
+        "source_reference": "CBACT01C paragraph 1300-POPUL-ACCT-RECORD; BRE BR004",
+        "confidence_level": "MEDIUM"
+      },
+      {
+        "transformation_id": "TR003",
+        "source_logic": "MOVE ACCT-CURR-BAL TO ARR-ACCT-CURR-BAL(1); MOVE 1005.00 TO ARR-ACCT-CURR-CYC-DEBIT(1); MOVE ACCT-CURR-BAL TO ARR-ACCT-CURR-BAL(2); MOVE 1525.00 TO ARR-ACCT-CURR-CYC-DEBIT(2); MOVE -1025.00 TO ARR-ACCT-CURR-BAL(3); MOVE -2500.00 TO ARR-ACCT-CURR-CYC-DEBIT(3)",
+        "pyspark_logic": "array(struct(col('ACCT_CURR_BAL'), lit(1005.00)), struct(col('ACCT_CURR_BAL'), lit(1525.00)), struct(lit(-1025.00), lit(-2500.00)))",
+        "target_columns": [
+          "ARR_ACCT_CURR_BAL_ARRAY",
+          "ARR_ACCT_CURR_CYC_DEBIT_ARRAY"
+        ],
+        "source_reference": "CBACT01C paragraph 1400-POPUL-ARRAY-RECORD; BRE BR007",
+        "confidence_level": "LOW"
+      },
+      {
+        "transformation_id": "TR004",
+        "source_logic": "COMPUTE WS-MONTHLY-INT = (TRAN-CAT-BAL * DIS-INT-RATE) / 1200",
+        "pyspark_logic": "(col('TRAN_CAT_BAL') * col('DIS_INT_RATE')) / 1200",
+        "target_columns": [
+          "TRAN_AMT"
+        ],
+        "source_reference": "CBACT04C paragraph 1300-COMPUTE-INTEREST; BRE BR004",
+        "confidence_level": "HIGH"
+      },
+      {
+        "transformation_id": "TR005",
+        "source_logic": "MOVE ACCT-ID TO VB1-ACCT-ID; MOVE ACCT-ACTIVE-STATUS TO VB1-ACCT-ACTIVE-STATUS; SET RECORD LENGTH TO 12",
+        "pyspark_logic": "struct(col('ACCT_ID'), col('ACCT_ACTIVE_STATUS')) for Type 1 variable-length record",
+        "target_columns": [
+          "VB1_ACCT_ID",
+          "VB1_ACCT_ACTIVE_STATUS"
+        ],
+        "source_reference": "CBACT01C paragraph 1500-POPUL-VBRC-RECORD; BRE BR005",
+        "confidence_level": "HIGH"
+      },
+      {
+        "transformation_id": "TR006",
+        "source_logic": "MOVE ACCT-ID TO VB2-ACCT-ID; MOVE ACCT-CURR-BAL TO VB2-ACCT-CURR-BAL; MOVE ACCT-CREDIT-LIMIT TO VB2-ACCT-CREDIT-LIMIT; MOVE WS-ACCT-REISSUE-YYYY TO VB2-ACCT-REISSUE-YYYY; SET RECORD LENGTH TO 39",
+        "pyspark_logic": "struct(col('ACCT_ID'), col('ACCT_CURR_BAL'), col('ACCT_CREDIT_LIMIT'), substring(col('ACCT_REISSUE_DATE'), 1, 4)) for Type 2 variable-length record",
+        "target_columns": [
+          "VB2_ACCT_ID",
+          "VB2_ACCT_CURR_BAL",
+          "VB2_ACCT_CREDIT_LIMIT",
+          "VB2_ACCT_REISSUE_YYYY"
+        ],
+        "source_reference": "CBACT01C paragraph 1500-POPUL-VBRC-RECORD; BRE BR006",
+        "confidence_level": "HIGH"
+      },
+      {
+        "transformation_id": "TR007",
+        "source_logic": "ADD 1 TO WS-TRANID-SUFFIX; STRING PARM-DATE WS-TRANID-SUFFIX DELIMITED BY SIZE INTO TRAN-ID",
+        "pyspark_logic": "concat(col('PARM_DATE'), row_number().over(Window.orderBy('TRANCAT_ACCT_ID')))",
+        "target_columns": [
+          "TRAN_ID"
+        ],
+        "source_reference": "CBACT04C paragraph 1300-B-WRITE-TX; BRE BR007",
+        "confidence_level": "HIGH"
+      },
+      {
+        "transformation_id": "TR008",
+        "source_logic": "ADD WS-TOTAL-INT TO ACCT-CURR-BAL; MOVE 0 TO ACCT-CURR-CYC-CREDIT; MOVE 0 TO ACCT-CURR-CYC-DEBIT",
+        "pyspark_logic": "df.withColumn('ACCT_CURR_BAL', col('ACCT_CURR_BAL') + col('WS_TOTAL_INT')).withColumn('ACCT_CURR_CYC_CREDIT', lit(0)).withColumn('ACCT_CURR_CYC_DEBIT', lit(0))",
+        "target_columns": [
+          "ACCT_CURR_BAL",
+          "ACCT_CURR_CYC_CREDIT",
+          "ACCT_CURR_CYC_DEBIT"
+        ],
+        "source_reference": "CBACT04C paragraph 1050-UPDATE-ACCOUNT; BRE BR008",
+        "confidence_level": "HIGH"
+      }
+    ],
+    "business_rule_mappings": [
+      {
+        "rule_id": "BR001",
+        "business_description": "Account File Sequential Read Until EOF - Read all account records from ACCTFILE sequentially until end-of-file condition",
+        "source_logic": "PERFORM UNTIL END-OF-FILE = 'Y'; IF END-OF-FILE = 'N' PERFORM 1000-ACCTFILE-GET-NEXT",
+        "pyspark_logic": "for row in df.collect(): process_row(row); or df.foreach(lambda row: process_row(row))",
+        "conversion_pattern": "DataFrame iteration or foreach transformation",
+        "source_reference": "CBACT01C PROCEDURE DIVISION main loop; BRE BR001",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR002",
+        "business_description": "Account Read Status Routing - Evaluate file status after READ: '00' continue, '10' EOF terminate, other error abend",
+        "source_logic": "IF ACCTFILE-STATUS = '00' MOVE 0 TO APPL-RESULT ELSE IF ACCTFILE-STATUS = '10' MOVE 16 TO APPL-RESULT ELSE MOVE 12 TO APPL-RESULT; IF APPL-EOF MOVE 'Y' TO END-OF-FILE ELSE IF NOT APPL-AOK DISPLAY ERROR; PERFORM 9999-ABEND-PROGRAM",
+        "pyspark_logic": "try: rows = df.collect() except: log_error(); raise Exception(); handle_eof() if rows_count == 0",
+        "conversion_pattern": "Exception handling with try/catch or DataFrame isEmpty() check",
+        "source_reference": "CBACT01C paragraph 1000-ACCTFILE-GET-NEXT; BRE BR002",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR003",
+        "business_description": "Default Current Cycle Debit Value - When ACCT-CURR-CYC-DEBIT is zero, assign 2525.00 to output",
+        "source_logic": "IF ACCT-CURR-CYC-DEBIT EQUAL TO ZERO MOVE 2525.00 TO OUT-ACCT-CURR-CYC-DEBIT",
+        "pyspark_logic": "when(col('ACCT_CURR_CYC_DEBIT') == 0, lit(2525.00)).otherwise(col('ACCT_CURR_CYC_DEBIT'))",
+        "conversion_pattern": "when/otherwise() or coalesce with literal",
+        "source_reference": "CBACT01C paragraph 1300-POPUL-ACCT-RECORD; BRE BR003",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR004",
+        "business_description": "Account Reissue Date Format Conversion - Convert YYYY-MM-DD to YYYYMMDD via COBDATFT assembler routine",
+        "source_logic": "MOVE ACCT-REISSUE-DATE TO CODATECN-INP-DATE; MOVE '2' TO CODATECN-TYPE; MOVE '2' TO CODATECN-OUTTYPE; CALL 'COBDATFT' USING CODATECN-REC; MOVE CODATECN-0UT-DATE TO OUT-ACCT-REISSUE-DATE",
+        "pyspark_logic": "regexp_replace(col('ACCT_REISSUE_DATE'), '-', '') or to_date().cast(StringType()).regexp_replace",
+        "conversion_pattern": "String manipulation with regexp_replace or UDF",
+        "source_reference": "CBACT01C paragraph 1300-POPUL-ACCT-RECORD; BRE BR004",
+        "confidence_level": "MEDIUM"
+      },
+      {
+        "rule_id": "BR005",
+        "business_description": "Variable-Length Record Type 1 - Write 12-byte record with Account ID and Active Status",
+        "source_logic": "MOVE 12 TO WS-RECD-LEN; MOVE VBRC-REC1 TO VBR-REC(1:WS-RECD-LEN); WRITE VBR-REC",
+        "pyspark_logic": "df.select(col('ACCT_ID'), col('ACCT_ACTIVE_STATUS')).write.format('parquet')",
+        "conversion_pattern": "Select specific columns and write as separate record type",
+        "source_reference": "CBACT01C paragraph 1550-WRITE-VB1-RECORD; BRE BR005",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR006",
+        "business_description": "Variable-Length Record Type 2 - Write 39-byte record with Account ID, Balance, Credit Limit, Reissue Year",
+        "source_logic": "MOVE 39 TO WS-RECD-LEN; MOVE VBRC-REC2 TO VBR-REC(1:WS-RECD-LEN); WRITE VBR-REC",
+        "pyspark_logic": "df.select(col('ACCT_ID'), col('ACCT_CURR_BAL'), col('ACCT_CREDIT_LIMIT'), substring(col('ACCT_REISSUE_DATE'), 1, 4)).write.format('parquet')",
+        "conversion_pattern": "Select specific columns with derived field (substring) and write",
+        "source_reference": "CBACT01C paragraph 1575-WRITE-VB2-RECORD; BRE BR006",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR007",
+        "business_description": "Array Record Hardcoded Balance/Debit Values - Populate array with mixed live and hardcoded values",
+        "source_logic": "Occurrence 1: ACCT-CURR-BAL + 1005.00; Occurrence 2: ACCT-CURR-BAL + 1525.00; Occurrence 3: -1025.00 + -2500.00",
+        "pyspark_logic": "array(struct(col('ACCT_CURR_BAL'), lit(1005.00)), struct(col('ACCT_CURR_BAL'), lit(1525.00)), struct(lit(-1025.00), lit(-2500.00)))",
+        "conversion_pattern": "Array of structs with mixed literal and column values",
+        "source_reference": "CBACT01C paragraph 1400-POPUL-ARRAY-RECORD; BRE BR007",
+        "confidence_level": "LOW"
+      },
+      {
+        "rule_id": "BR008",
+        "business_description": "Card File Sequential Read Loop - Read all card records from CARDFILE until EOF",
+        "source_logic": "PERFORM UNTIL END-OF-FILE = 'Y'; IF END-OF-FILE = 'N' PERFORM 1000-CARDFILE-GET-NEXT; IF END-OF-FILE = 'N' DISPLAY CARD-RECORD",
+        "pyspark_logic": "for row in df.collect(): print(row); or df.foreach(lambda row: display(row))",
+        "conversion_pattern": "DataFrame iteration with print/display",
+        "source_reference": "CBACT02C lines 74-82; BRE BR001 (CBACT02C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR009",
+        "business_description": "Interest Rate Lookup by Account Group and Transaction Category - Composite key lookup",
+        "source_logic": "MOVE ACCT-GROUP-ID + TRANCAT-TYPE-CD + TRANCAT-CD to composite key; READ DISCGRP-FILE USING composite key",
+        "pyspark_logic": "df.join(discgrp_df, on=[col('ACCT_GROUP_ID') == col('DIS_ACCT_GROUP_ID'), col('TRANCAT_TYPE_CD') == col('DIS_TRAN_TYPE_CD'), col('TRANCAT_CD') == col('DIS_TRAN_CAT_CD')], how='left')",
+        "conversion_pattern": "Multi-key join or composite key lookup",
+        "source_reference": "CBACT04C paragraph 1200-GET-INTEREST-RATE; BRE BR001 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR010",
+        "business_description": "Default Interest Rate Fallback - On lookup not found, retry with 'DEFAULT' group code",
+        "source_logic": "IF DISCGRP-STATUS = '23' MOVE 'DEFAULT' TO FD-DIS-ACCT-GROUP-ID; PERFORM 1200-A-GET-DEFAULT-INT-RATE",
+        "pyspark_logic": "when(col('DIS_INT_RATE').isNull(), get_default_rate(col('TRANCAT_TYPE_CD'), col('TRANCAT_CD'))).otherwise(col('DIS_INT_RATE'))",
+        "conversion_pattern": "when/otherwise with fallback UDF or secondary join",
+        "source_reference": "CBACT04C paragraph 1200-A-GET-DEFAULT-INT-RATE; BRE BR002 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR011",
+        "business_description": "Skip Interest Calculation When Rate is Zero - No interest/fees computed for zero-rate categories",
+        "source_logic": "IF DIS-INT-RATE NOT = 0 PERFORM 1300-COMPUTE-INTEREST; PERFORM 1400-COMPUTE-FEES",
+        "pyspark_logic": "when(col('DIS_INT_RATE') != 0, compute_interest(col('TRAN_CAT_BAL'), col('DIS_INT_RATE'))).otherwise(lit(0))",
+        "conversion_pattern": "when/otherwise() to conditionally apply computation",
+        "source_reference": "CBACT04C PROCEDURE DIVISION main loop; BRE BR003 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR012",
+        "business_description": "Monthly Interest Calculation Formula - (Balance * Annual Rate) / 1200",
+        "source_logic": "COMPUTE WS-MONTHLY-INT = (TRAN-CAT-BAL * DIS-INT-RATE) / 1200",
+        "pyspark_logic": "(col('TRAN_CAT_BAL') * col('DIS_INT_RATE')) / 1200",
+        "conversion_pattern": "Arithmetic expression using withColumn()",
+        "source_reference": "CBACT04C paragraph 1300-COMPUTE-INTEREST; BRE BR004 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR013",
+        "business_description": "Accumulate Total Interest Per Account - Sum all category interest into account total",
+        "source_logic": "ADD WS-MONTHLY-INT TO WS-TOTAL-INT (for each category); MOVE 0 TO WS-TOTAL-INT (on account boundary)",
+        "pyspark_logic": "df.groupBy('TRANCAT_ACCT_ID').agg(sum(col('WS_MONTHLY_INT')).alias('WS_TOTAL_INT'))",
+        "conversion_pattern": "groupBy() with sum() aggregation",
+        "source_reference": "CBACT04C paragraph 1300-COMPUTE-INTEREST; BRE BR005 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR014",
+        "business_description": "Interest Transaction Record Generation - Write system-generated interest transaction",
+        "source_logic": "MOVE '01' TO TRAN-TYPE-CD; MOVE '05' TO TRAN-CAT-CD; MOVE 'System' TO TRAN-SOURCE; STRING 'Int. for a/c ' ACCT-ID INTO TRAN-DESC; MOVE WS-MONTHLY-INT TO TRAN-AMT; MOVE XREF-CARD-NUM TO TRAN-CARD-NUM; WRITE FD-TRANFILE-REC",
+        "pyspark_logic": "df.withColumn('TRAN_TYPE_CD', lit('01')).withColumn('TRAN_CAT_CD', lit('05')).withColumn('TRAN_SOURCE', lit('System')).withColumn('TRAN_DESC', concat(lit('Int. for a/c '), col('ACCT_ID'))).withColumn('TRAN_AMT', col('WS_MONTHLY_INT')).withColumn('TRAN_CARD_NUM', col('XREF_CARD_NUM'))",
+        "conversion_pattern": "withColumn() for each field mapping with literals and concat()",
+        "source_reference": "CBACT04C paragraph 1300-B-WRITE-TX; BRE BR006 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR015",
+        "business_description": "Account Balance Update with Total Interest and Cycle Reset - Update account balance and reset cycles",
+        "source_logic": "ADD WS-TOTAL-INT TO ACCT-CURR-BAL; MOVE 0 TO ACCT-CURR-CYC-CREDIT; MOVE 0 TO ACCT-CURR-CYC-DEBIT; REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD",
+        "pyspark_logic": "df.withColumn('ACCT_CURR_BAL', col('ACCT_CURR_BAL') + col('WS_TOTAL_INT')).withColumn('ACCT_CURR_CYC_CREDIT', lit(0)).withColumn('ACCT_CURR_CYC_DEBIT', lit(0))",
+        "conversion_pattern": "withColumn() for arithmetic and literal reset; write/merge for update",
+        "source_reference": "CBACT04C paragraph 1050-UPDATE-ACCOUNT; BRE BR008 (CBACT04C)",
+        "confidence_level": "HIGH"
+      },
+      {
+        "rule_id": "BR016",
+        "business_description": "First Account Boundary Suppression - Skip account update for very first boundary in run",
+        "source_logic": "IF TRANCAT-ACCT-ID NOT= WS-LAST-ACCT-NUM IF WS-FIRST-TIME NOT = 'Y' PERFORM 1050-UPDATE-ACCOUNT ELSE MOVE 'N' TO WS-FIRST-TIME",
+        "pyspark_logic": "df.withColumn('row_num', row_number().over(Window.partitionBy().orderBy('TRANCAT_ACCT_ID'))).filter(col('row_num') > 1)",
+        "conversion_pattern": "Row numbering with window function to skip first account",
+        "source_reference": "CBACT04C PROCEDURE DIVISION main loop; BRE BR009 (CBACT04C)",
+        "confidence_level": "HIGH"
+      }
+    ],
+    "validation_specifications": [
+      {
+        "validation_id": "V001",
+        "condition": "ACCTFILE-STATUS = '00' after READ",
+        "pyspark_expression": "try: df = spark.read.parquet('path'); assert df.count() > 0 except Exception as e: log_error(e)",
+        "source_reference": "CBACT01C paragraph 1000-ACCTFILE-GET-NEXT"
+      },
+      {
+        "validation_id": "V002",
+        "condition": "ACCTFILE-STATUS = '10' indicates EOF",
+        "pyspark_expression": "if df.count() == 0: set_eof_flag(True)",
+        "source_reference": "CBACT01C paragraph 1000-ACCTFILE-GET-NEXT"
+      },
+      {
+        "validation_id": "V003",
+        "condition": "ACCTFILE-STATUS not '00' and not '10' causes abend",
+        "pyspark_expression": "if not (status == '00' or status == '10'): raise Exception(f'File error: {status}')",
+        "source_reference": "CBACT01C paragraph 1000-ACCTFILE-GET-NEXT"
+      },
+      {
+        "validation_id": "V004",
+        "condition": "CARDFILE-STATUS = '00' after READ",
+        "pyspark_expression": "try: card_df = spark.read.parquet('path'); assert card_df.count() > 0 except Exception: abend()",
+        "source_reference": "CBACT02C paragraph 1000-CARDFILE-GET-NEXT"
+      },
+      {
+        "validation_id": "V005",
+        "condition": "DISCGRP-STATUS = '23' triggers DEFAULT group fallback",
+        "pyspark_expression": "if discgrp_df.filter(composite_key).count() == 0: use_default_group_df",
+        "source_reference": "CBACT04C paragraph 1200-GET-INTEREST-RATE"
+      },
+      {
+        "validation_id": "V006",
+        "condition": "DIS-INT-RATE must be non-zero for interest computation",
+        "pyspark_expression": "when(col('DIS_INT_RATE') != 0, compute_interest(...)).otherwise(lit(0))",
+        "source_reference": "CBACT04C PROCEDURE DIVISION main loop"
+      }
+    ],
+    "aggregation_specifications": [
+      {
+        "aggregation_id": "A001",
+        "group_by_columns": [
+          "TRANCAT_ACCT_ID"
+        ],
+        "aggregation_logic": "Sum of monthly interest amounts across all transaction categories for an account",
+        "pyspark_expression": "df.groupBy('TRANCAT_ACCT_ID').agg(sum(col('WS_MONTHLY_INT')).alias('WS_TOTAL_INT'))"
+      },
+      {
+        "aggregation_id": "A002",
+        "group_by_columns": [],
+        "aggregation_logic": "Unique account records after deduplication",
+        "pyspark_expression": "df.dropDuplicates(['ACCT_ID'])"
+      }
+    ],
+    "control_flow_mapping": [
+      {
+        "source_construct": "PERFORM UNTIL END-OF-FILE = 'Y'",
+        "source_logic": "Sequential loop terminating on EOF flag",
+        "target_pattern": "DataFrame iteration with exit condition",
+        "pyspark_implementation": "for row in df.collect(): if eof_condition: break; process_row(row)"
+      },
+      {
+        "source_construct": "IF...ELSE",
+        "source_logic": "Conditional branching based on file status or data value",
+        "target_pattern": "when(condition).otherwise(alternative)",
+        "pyspark_implementation": "when(col('field') == value, action1).otherwise(action2)"
+      },
+      {
+        "source_construct": "PERFORM paragraph",
+        "source_logic": "Subroutine call",
+        "target_pattern": "Function call",
+        "pyspark_implementation": "def paragraph_name(df): return transformed_df; result_df = paragraph_name(input_df)"
+      },
+      {
+        "source_construct": "CALL external program",
+        "source_logic": "Invocation of external subroutine (COBDATFT, CEE3ABD)",
+        "target_pattern": "UDF or external function wrapper",
+        "pyspark_implementation": "spark.udf.register('cobdatft_udf', lambda x: external_date_format(x))"
+      },
+      {
+        "source_construct": "ABEND-PROGRAM",
+        "source_logic": "Abnormal program termination on error",
+        "target_pattern": "Exception raise",
+        "pyspark_implementation": "raise RuntimeError(f'Program abend: {error_code}')"
+      },
+      {
+        "source_construct": "Account group boundary detection",
+        "source_logic": "TRANCAT-ACCT-ID NOT= WS-LAST-ACCT-NUM",
+        "target_pattern": "Window function row numbering or lead/lag",
+        "pyspark_implementation": "df.withColumn('prev_acct_id', lag(col('TRANCAT_ACCT_ID')).over(Window.orderBy(...))).filter(col('TRANCAT_ACCT_ID') != col('prev_acct_id'))"
+      }
+    ],
+    "target_pyspark_architecture": {
+      "processing_layers": [
+        {
+          "layer_name": "Input Stage",
+          "description": "Load source VSAM files and sequential files into DataFrames",
+          "components": [
+            "acctfile_df = spark.read.parquet('AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS')",
+            "cardfile_df = spark.read.parquet('AWS.M2.CARDDEMO.CARDDATA.VSAM.KSDS')",
+            "tcatbal_df = spark.read.parquet('AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS')",
+            "xref_df = spark.read.parquet('XREF_FILE')",
+            "discgrp_df = spark.read.parquet('DISCGRP_FILE')"
+          ]
+        },
+        {
+          "layer_name": "Transformation Stage (Account Extract)",
+          "description": "CBACT01C transformations: read account file, apply date conversion, default debit, populate array and variable-length records",
+          "components": [
+            "acctfile_df.withColumn('OUT_ACCT_REISSUE_DATE', regexp_replace(...))",
+            "acctfile_df.withColumn('OUT_ACCT_CURR_CYC_DEBIT', when(col('ACCT_CURR_CYC_DEBIT') == 0, 2525.00).otherwise(...))",
+            "array_output_df = acctfile_df.select(array(...)) for ARRYFILE",
+            "vbrc_output_df = acctfile_df.select(...) for VBRCFILE (split into Type 1 and Type 2)"
+          ]
+        },
+        {
+          "layer_name": "Transformation Stage (Interest Calculation)",
+          "description": "CBACT04C transformations: interest rate lookup, monthly interest computation, account update, transaction generation",
+          "components": [
+            "joined_df = tcatbal_df.join(acctfile_df, 'TRANCAT_ACCT_ID') for account data",
+            "joined_df = joined_df.join(xref_df, ...) for card number",
+            "joined_df = joined_df.join(discgrp_df, composite_key) for interest rate",
+            "joined_df.withColumn('WS_MONTHLY_INT', (col('TRAN_CAT_BAL') * col('DIS_INT_RATE')) / 1200)",
+            "grouped_df = joined_df.groupBy('TRANCAT_ACCT_ID').agg(sum('WS_MONTHLY_INT')) for account total",
+            "updated_acct_df = acctfile_df.join(grouped_df, ...).withColumn('ACCT_CURR_BAL', col('ACCT_CURR_BAL') + col('WS_TOTAL_INT'))"
+          ]
+        },
+        {
+          "layer_name": "Output Stage",
+          "description": "Write transformed DataFrames to output datasets",
+          "components": [
+            "acctfile_transformed_df.write.mode('overwrite').parquet('AWS.M2.CARDDEMO.ACCTDATA.PSCOMP') for OUTFILE",
+            "array_output_df.write.mode('overwrite').parquet('AWS.M2.CARDDEMO.ACCTDATA.ARRYPS') for ARRYFILE",
+            "vbrc_output_df.write.mode('overwrite').parquet('AWS.M2.CARDDEMO.ACCTDATA.VBPS') for VBRCFILE",
+            "transaction_df.write.mode('overwrite').parquet('AWS.M2.CARDDEMO.SYSTRAN') for TRANSACT-FILE"
+          ]
+        }
+      ],
+      "input_dataframes": [
+        "acctfile_df",
+        "cardfile_df",
+        "tcatbal_df",
+        "xref_df",
+        "discgrp_df"
+      ],
+      "intermediate_dataframes": [
+        "joined_tcatbal_acct_df",
+        "joined_full_df_with_rate",
+        "interest_df",
+        "monthly_int_df",
+        "account_interest_totals_df",
+        "updated_acct_df",
+        "transaction_df"
+      ],
+      "output_dataframes": [
+        "outfile_df",
+        "arryfile_df",
+        "vbrcfile_df",
+        "transact_df",
+        "updated_acctfile_df"
+      ]
+    },
+    "conversion_complexity": {
+      "complexity_rating": "HIGH",
+      "complexity_drivers": [
+        "Multiple file access patterns (sequential read, random lookup, read-for-update)",
+        "Composite key lookups with fallback logic (BR002 - DEFAULT group)",
+        "Account group boundary detection logic with state management",
+        "Multiple output record types with different schemas (flat, array, variable-length)",
+        "Date format conversion via external assembler call (COBDATFT)",
+        "Hardcoded array values mixing live data with constants",
+        "File status error handling with detailed routing",
+        "Window-based account boundary and transaction ID generation"
+      ]
+    },
+    "traceability_matrix": [
+      {
+        "source_reference": "CBACT01C paragraph 1000-ACCTFILE-GET-NEXT",
+        "source_snippet": "IF ACCTFILE-STATUS = '00' MOVE 0 TO APPL-RESULT ELSE IF ACCTFILE-STATUS = '10' MOVE 16 TO APPL-RESULT ELSE MOVE 12 TO APPL-RESULT END-IF END-IF",
+        "generated_artifact": "V001, V002, V003 validation specifications; BR002 business rule"
+      },
+      {
+        "source_reference": "CBACT01C paragraph 1300-POPUL-ACCT-RECORD",
+        "source_snippet": "IF ACCT-CURR-CYC-DEBIT EQUAL TO ZERO MOVE 2525.00 TO OUT-ACCT-CURR-CYC-DEBIT END-IF",
+        "generated_artifact": "TR001 transformation; BR003 business rule"
+      },
+      {
+        "source_reference": "CBACT01C paragraph 1300-POPUL-ACCT-RECORD (date conversion)",
+        "source_snippet": "CALL 'COBDATFT' USING CODATECN-REC",
+        "generated_artifact": "TR002 transformation; BR004 business rule; mainframe_to_pyspark_mapping (CALL construct)"
+      },
+      {
+        "source_reference": "CBACT01C paragraph 1400-POPUL-ARRAY-RECORD",
+        "source_snippet": "MOVE ACCT-CURR-BAL TO ARR-ACCT-CURR-BAL(1); MOVE 1005.00 TO ARR-ACCT-CURR-CYC-DEBIT(1); ...",
+        "generated_artifact": "TR003 transformation; BR007 business rule; input_dataframes (ARRYFILE schema)"
+      },
+      {
+        "source_reference": "CBACT02C lines 74-82",
+        "source_snippet": "PERFORM UNTIL END-OF-FILE = 'Y' ... DISPLAY CARD-RECORD",
+        "generated_artifact": "BR008 business rule; control_flow_mapping (PERFORM UNTIL)"
+      },
+      {
+        "source_reference": "CBACT04C paragraph 1200-GET-INTEREST-RATE",
+        "source_snippet": "READ DISCGRP-FILE INTO DIS-GROUP-RECORD INVALID KEY DISPLAY 'DISCLOSURE GROUP RECORD MISSING'; IF DISCGRP-STATUS = '23' MOVE 'DEFAULT' ...",
+        "generated_artifact": "BR009, BR010 business rules; J003 join specification; TR004 transformation"
+      },
+      {
+        "source_reference": "CBACT04C paragraph 1300-COMPUTE-INTEREST",
+        "source_snippet": "IF DIS-INT-RATE NOT = 0 COMPUTE WS-MONTHLY-INT = (TRAN-CAT-BAL * DIS-INT-RATE) / 1200 ADD WS-MONTHLY-INT TO WS-TOTAL-INT",
+        "generated_artifact": "BR011, BR012, BR013 business rules; TR004 transformation; A001 aggregation"
+      },
+      {
+        "source_reference": "CBACT04C paragraph 1300-B-WRITE-TX",
+        "source_snippet": "MOVE '01' TO TRAN-TYPE-CD; MOVE '05' TO TRAN-CAT-CD; MOVE 'System' TO TRAN-SOURCE; STRING 'Int. for a/c ' ACCT-ID ...",
+        "generated_artifact": "BR014 business rule; TR007 transformation; output_dataframes (TRANSACT_DF schema)"
+      },
+      {
+        "source_reference": "CBACT04C paragraph 1050-UPDATE-ACCOUNT",
+        "source_snippet": "ADD WS-TOTAL-INT TO ACCT-CURR-BAL; MOVE 0 TO ACCT-CURR-CYC-CREDIT; MOVE 0 TO ACCT-CURR-CYC-DEBIT; REWRITE FD-ACCTFILE-REC FROM ACCOUNT-RECORD",
+        "generated_artifact": "BR015 business rule; TR008 transformation; mainframe_to_pyspark_mapping (REWRITE construct)"
+      },
+      {
+        "source_reference": "CBACT04C PROCEDURE DIVISION main loop",
+        "source_snippet": "IF TRANCAT-ACCT-ID NOT= WS-LAST-ACCT-NUM IF WS-FIRST-TIME NOT = 'Y' PERFORM 1050-UPDATE-ACCOUNT ELSE MOVE 'N' TO WS-FIRST-TIME",
+        "generated_artifact": "BR016 business rule; control_flow_mapping (account group boundary)"
+      }
+    ]
+  }
+}

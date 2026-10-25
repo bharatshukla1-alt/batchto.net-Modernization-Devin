@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);NU3037;NU3028;NU3018;NU3000</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU3037;NU3028;NU3018</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <PackageReference>
+      <NoWarn>NU3037;NU3028;NU3018</NoWarn>
+    </PackageReference>
+  </ItemDefinitionGroup>
+</Project>

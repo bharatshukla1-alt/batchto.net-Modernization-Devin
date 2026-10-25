@@ -1,0 +1,35 @@
+{
+  "project_name": "Mainframe Batch to .NET 8 Modernization Engine",
+  "version": "1.0.0",
+  "environment": {
+    "type": "ubuntu-container",
+    "setup_command": "./setup_devin_env.sh",
+    "default_branch": "main"
+  },
+  "build": {
+    "command": "dotnet build dotnet/CardDemo.Modernized.sln --warnaserror"
+  },
+  "test": {
+    "command": "python3 run_pipeline.py --phase test"
+  },
+  "run": {
+    "command": "python3 run_pipeline.py --phase run"
+  },
+  "gates": [
+    {
+      "name": "GATE_1_DISCOVERY",
+      "phase": 2,
+      "report": "Artefacts/Review/Discovery-Review-Gate-Report.md"
+    },
+    {
+      "name": "GATE_2_TARGET_BUILD",
+      "phase": 6,
+      "report": "Artefacts/Review/Target-Review-Gate-Report.md"
+    },
+    {
+      "name": "GATE_3_FINAL_AUDIT",
+      "phase": 8,
+      "report": "Artefacts/Audits/Quality-Security-Audit-Report.md"
+    }
+  ]
+}

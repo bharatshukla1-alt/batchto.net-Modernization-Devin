@@ -1,0 +1,9 @@
+# Build & Binary outputs
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Environment & temporary
+*.log

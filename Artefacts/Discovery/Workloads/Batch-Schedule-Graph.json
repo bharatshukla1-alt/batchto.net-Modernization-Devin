@@ -1,0 +1,35 @@
+{
+  "jobOrder": [
+    "READACCT",
+    "READCARD",
+    "INTCALC"
+  ],
+  "jobs": [
+    {
+      "jobName": "READACCT",
+      "predecessors": [],
+      "successors": [
+        "READCARD"
+      ],
+      "scheduleFrequency": "Daily"
+    },
+    {
+      "jobName": "READCARD",
+      "predecessors": [
+        "READACCT"
+      ],
+      "successors": [
+        "INTCALC"
+      ],
+      "scheduleFrequency": "Daily"
+    },
+    {
+      "jobName": "INTCALC",
+      "predecessors": [
+        "READCARD"
+      ],
+      "successors": [],
+      "scheduleFrequency": "Daily"
+    }
+  ]
+}

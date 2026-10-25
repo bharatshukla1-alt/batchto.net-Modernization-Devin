@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CardDemo.Domain\CardDemo.Domain.csproj" />
+    <ProjectReference Include="..\CardDemo.Data\CardDemo.Data.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoWarn>;NU3037;NU3028;NU3018;NU3000</NoWarn>
+    <WarningsNotAsErrors>NU3037;NU3028;NU3018</WarningsNotAsErrors>
+  </PropertyGroup>
+
+</Project>
