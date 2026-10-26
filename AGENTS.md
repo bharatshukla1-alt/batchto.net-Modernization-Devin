@@ -14,41 +14,39 @@ You orchestrate an end-to-end modernization pipeline designed strictly for **Mai
 ## 1. Repository Architecture & Layout
 
 ```
-testRepo/
+batchto-net-modernization-devin/
+├── DEVIN.md                                 # Primary instruction manual for Devin IDE
 ├── AGENTS.md                                # Root orchestration: batch pipeline phases, golden rules, artifact contracts
-├── CLAUDE.md                                # Compatibility mirror for AGENTS.md
-├── .github/agents/                          # Legacy PySpark agents (Reference baseline)
-├── .Claude/
-│   ├── Agents/                              # 14 Dedicated Batch Modernization Subagents
-│   │   ├── Jcl-Analyzer-Agent.md             # Phase 1: JCL step sequence, DD datasets, and execution conditions
-│   │   ├── Program-Analyzer-Agent.md         # Phase 1: Batch COBOL AST, file controls (SELECT/ASSIGN), and copybooks
-│   │   ├── Bre-Analyzer-Agent.md             # Phase 1: Batch business rules, interest math formulas, control breaks
-│   │   ├── ca7-scheduler-analyzer.agent.md   # Phase 1: Parses CA-7 / OPC 1LJOB blocks into job DAGs & run cycles
-│   │   ├── Discovery-Review-Gate-Agent.md    # Phase 2: Audits Discovery facts vs source code before Gate 1
-│   │   ├── Target-Planning-Agent.md          # Phase 3: Canonical Batch IR synthesis & .NET Batch ADR formulation
-│   │   ├── Schema-Store-Provisioner-Agent.md # Phase 4: Relational VSAM schemas & BATCH_STEP_CHECKPOINT DDL
-│   │   ├── Dotnet-Batch-Engineer-Agent.md    # Phase 5: Production .NET 8 / C# 12 batch generation with restart
-│   │   ├── quartz-orchestrator-creator.agent.md # Phase 5: Quartz.NET jobs & step sequence coordinator
-│   │   ├── Spec-Review-Gate-Agent.md         # Phase 6: Deep-reviews .NET batch code against plan before Gate 2
-│   │   ├── Reconciliation-Test-Agent.md      # Phase 7: 5-Level batch reconciliation & xUnit contract tests
-│   │   ├── Test-Failure-Remediator-Agent.md  # Phase 7: Automated test failure & batch reconciliation remediator
-│   │   ├── Quality-Security-Auditor-Agent.md # Phase 8: Code quality, [Trace] coverage, and zero-allocation span audit
-│   │   └── Quality-Security-Remediator-Agent.md # Phase 8: Automated code & security remediator
-│   ├── Commands/                            # 8 Executable Batch Pipeline Commands
-│   │   ├── 01-Legacy-Discovery.md            # Phase 1: JCL, Batch COBOL, Copybook, CA-7 & BRE extraction
-│   │   ├── 02-Discovery-Review-Gate.md       # Phase 2: Audit discovery completeness (GATE 1)
-│   │   ├── 03-Target-Planning.md             # Phase 3: Canonical Batch IR, ADRs, and Lowering Plan
-│   │   ├── 04-Database-Provisioning.md       # Phase 4: VSAM DDL, Checkpoint, and Ledger tables
-│   │   ├── 05-Target-Build.md                # Phase 5: .NET 8 batch solution, codecs, and batch steps
-│   │   ├── 06-Target-Review-Gate.md          # Phase 6: Compile & IR implementation review (GATE 2)
-│   │   ├── 07-Target-Validation.md           # Phase 7: xUnit tests, contract tests & batch reconciliation
-│   │   └── 08-Quality-Security-Audit.md      # Phase 8: Traceability, memory, and security audit (GATE 3)
-│   ├── Prompts/
-│   │   └── Common/
-│   │       ├── Anti-Hallucination.md         # Strict evidence anchoring & no fabrication rules
-│   │       └── Target-Neutrality.md          # Target-neutral extraction rules (no target bias)
-│   └── Specs/
-│       └── INTCALC-Modernization-Spec.md     # Detailed batch specification for INTCALC (CBACT04C)
+├── setup_devin_env.sh                       # Ubuntu environment bootstrap script (.NET 8 SDK + libicu)
+├── run_pipeline.sh                          # Master CLI bash runner for Devin
+├── run_pipeline.py                          # Cross-platform Python pipeline runner
+├── .devin/
+│   ├── config.json                          # Devin project configuration & review gate thresholds
+│   ├── agents/                              # 14 Dedicated Batch Modernization Subagents for Devin
+│   │   ├── jcl-analyzer.devin.md            # Phase 1: JCL step sequence, DD datasets, and execution conditions
+│   │   ├── program-analyzer.devin.md        # Phase 1: Batch COBOL AST, file controls (SELECT/ASSIGN), and copybooks
+│   │   ├── bre-analyzer.devin.md            # Phase 1: Batch business rules, interest math formulas, control breaks
+│   │   ├── ca7-scheduler-analyzer.devin.md  # Phase 1: Parses CA-7 / OPC 1LJOB blocks into job DAGs & run cycles
+│   │   ├── discovery-review-gate.devin.md   # Phase 2: Audits Discovery facts vs source code before Gate 1
+│   │   ├── target-planning.devin.md         # Phase 3: Canonical Batch IR synthesis & .NET Batch ADR formulation
+│   │   ├── schema-store-provisioner.devin.md# Phase 4: Relational VSAM schemas & BATCH_STEP_CHECKPOINT DDL
+│   │   ├── dotnet-batch-engineer.devin.md   # Phase 5: Production .NET 8 / C# 12 batch generation with restart
+│   │   ├── quartz-orchestrator-creator.devin.md # Phase 5: Quartz.NET jobs & step sequence coordinator
+│   │   ├── spec-review-gate.devin.md        # Phase 6: Deep-reviews .NET batch code against plan before Gate 2
+│   │   ├── reconciliation-test.devin.md     # Phase 7: 5-Level batch reconciliation & xUnit contract tests
+│   │   ├── test-failure-remediator.devin.md # Phase 7: Automated test failure & batch reconciliation remediator
+│   │   ├── quality-security-auditor.devin.md# Phase 8: Code quality, [Trace] coverage, and zero-allocation span audit
+│   │   └── quality-security-remediator.devin.md # Phase 8: Automated code & security remediator
+│   ├── playbooks/                           # 8 Executable Batch Pipeline Playbooks for Devin
+│   │   ├── 01-legacy-discovery.playbook.md  # Phase 1: JCL, Batch COBOL, Copybook, CA-7 & BRE extraction
+│   │   ├── 02-discovery-review-gate.playbook.md # Phase 2: Audit discovery completeness (GATE 1)
+│   │   ├── 03-target-planning.playbook.md   # Phase 3: Canonical Batch IR, ADRs, and Lowering Plan
+│   │   ├── 04-database-provisioning.playbook.md # Phase 4: VSAM DDL, Checkpoint, and Ledger tables
+│   │   ├── 05-target-build.playbook.md      # Phase 5: .NET 8 batch solution, codecs, and batch steps
+│   │   ├── 06-target-review-gate.playbook.md # Phase 6: Compile & IR implementation review (GATE 2)
+│   │   ├── 07-target-validation.playbook.md # Phase 7: xUnit tests, contract tests & batch reconciliation
+│   │   └── 08-quality-security-audit.playbook.md # Phase 8: Traceability, memory, and security audit (GATE 3)
+│   └── scripts/                             # Devin execution scripts
 ├── input/                                   # READ-ONLY source legacy mainframe assets
 │   ├── jcl/                                 # JCL jobs (INTCALC, READACCT, READCARD)
 │   ├── cbl/                                 # COBOL batch programs (CBACT01C, CBACT02C, CBACT04C)
