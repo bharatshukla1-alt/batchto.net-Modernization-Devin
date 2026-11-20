@@ -17,6 +17,10 @@ Results at hand-over: 24/24 golden fixtures pass the estate's field-level compar
 56 xUnit tests, GATE 1 / Spec Review / GATE 2 / GATE 3 PASS, 47/47 business rules traced. Open decisions: `Artefacts/Discovery/Gaps.md`
 (GAP-006: PostgreSQL aborts the unit of work after a failed dynamic statement, Db2 would not).
 
+## Demo video
+
+`demo/carddemo-batch-modernization-full.mp4` (about 5.5 minutes) has three parts: the legacy JCL/COBOL/Db2 runs on the GnuCOBOL estate, the conversion phase by phase, and the same flows on .NET 8, including parity, crash tests and gates. Every screen is captured command output.
+
 ## Running
 
 The discovery, parity and reconciliation tools read the legacy sources, fixtures and comparator of the ts-cobol-carddemo estate, so copy
