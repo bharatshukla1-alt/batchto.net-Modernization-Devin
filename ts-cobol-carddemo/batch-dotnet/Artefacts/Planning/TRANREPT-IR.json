@@ -1,0 +1,125 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "TRANREPT",
+   "source_program": "CBTRN03C",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "Back up, filter/sort and print the daily transaction detail report with page/account/grand totals.",
+   "source_evidence": [
+    "Discovery/Workloads/TRANREPT-Jcl-Facts.md",
+    "Discovery/Programs/CBTRN03C-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "STEP05R.PRC001 REPRO -> TRANSACT.BKUP(+1)",
+   "STEP05R SORT (263,16,ZD,A) INCLUDE 305,10",
+   "STEP10R CBTRN03C"
+  ],
+  "inputs": [
+   "TRANSACT.DALY(+1)",
+   "CARDXREF",
+   "TRANTYPE",
+   "TRANCATG",
+   "DATEPARM"
+  ],
+  "outputs": [
+   "TRANREPT(+1) (133-byte report, CVTRA07Y)"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM CBTRN03C",
+    "target_construct": "CardDemo.Batch.Programs.Cbtrn03c",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-RPT-001",
+    "source": "app/cbl/CBTRN03C.cbl:221",
+    "statement": "Report period is read from DATEPARM (start date, filler, end date).",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-002",
+    "source": "app/cbl/CBTRN03C.cbl:177",
+    "statement": "A transaction outside the period triggers NEXT SENTENCE, which leaves the whole PERFORM loop (no totals written) - legacy quirk.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-003",
+    "source": "app/cbl/CBTRN03C.cbl:183",
+    "statement": "A change of card number writes the account total of the previous card (not before the first).",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-004",
+    "source": "app/cbl/CBTRN03C.cbl:282",
+    "statement": "Every line counter multiple of the page size (20) writes page totals and new headers.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-005",
+    "source": "app/cbl/CBTRN03C.cbl:297",
+    "statement": "Page totals roll into the grand total and reset; account totals reset but do not reset the page total.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-006",
+    "source": "app/cbl/CBTRN03C.cbl:198",
+    "statement": "At end-of-file the last TRAN-AMT is added again to page and account totals before page and grand totals are written; the final account total is never written - legacy quirk.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-007",
+    "source": "app/cbl/CBTRN03C.cbl:487",
+    "statement": "XREF, TRANTYPE and TRANCATG lookups that fail abend the program (U999).",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   },
+   {
+    "id": "BR-RPT-008",
+    "source": "app/cbl/CBTRN03C.cbl:370",
+    "statement": "The detail line carries id, account, type code/desc, category code/desc, source and the edited amount (-ZZZ,ZZZ,ZZZ.ZZ).",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn03c.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   },
+   {
+    "id": "GAP-005",
+    "description": "SORT is DFSORT on z/OS; ordering of equal keys is not stated (no EQUALS). The harness and port use a stable sort."
+   }
+  ]
+ }
+}

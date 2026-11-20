@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\CardDemo.Data\CardDemo.Data.csproj" />
+  </ItemGroup>
+</Project>

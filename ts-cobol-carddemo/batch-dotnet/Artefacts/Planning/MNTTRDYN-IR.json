@@ -1,0 +1,102 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "MNTTRDYN",
+   "source_program": "CBTRNDYN",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "Ad-hoc dynamic SQL (PREPARE/EXECUTE) followed by a dynamic CALL of COBTUPDT in the same unit of work.",
+   "source_evidence": [
+    "Discovery/Workloads/MNTTRDYN-Jcl-Facts.md",
+    "Discovery/Programs/CBTRNDYN-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "STEP1 IKJEFT01: DSN RUN PROGRAM(CBTRNDYN) PLAN(CARDDEMO) PARMS('COBTUPDT')"
+  ],
+  "inputs": [
+   "DYNSQL (FB 80: one ad-hoc SQL statement)",
+   "INPFILE (FB 53)",
+   "CARDDEMO.TRANSACTION_TYPE"
+  ],
+  "outputs": [
+   "Dynamic statement applied, then COBTUPDT's changes, committed together",
+   "RC 8 when EXECUTE fails (lost after COBTUPDT, GAP-007)"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM CBTRNDYN",
+    "target_construct": "CardDemo.Batch.Programs.Cbtrndyn",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-DYN-001",
+    "source": "app/app-transaction-type-db2/cbl/CBTRNDYN.cbl:73",
+    "statement": "DYNSQL lines starting with '--' are skipped; columns 1-72 of the other lines are concatenated, each followed by one blank, into an 800-byte statement.",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-DYN-002",
+    "source": "app/app-transaction-type-db2/cbl/CBTRNDYN.cbl:96",
+    "statement": "The statement is PREPAREd and EXECUTEd; the EXECUTE SQLCODE is displayed (statement errors surface at EXECUTE under ocesql).",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-DYN-003",
+    "source": "app/app-transaction-type-db2/cbl/CBTRNDYN.cbl:93",
+    "statement": "A failed PREPARE or EXECUTE sets RETURN-CODE 8 and processing continues.",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-DYN-004",
+    "source": "app/app-transaction-type-db2/cbl/CBTRNDYN.cbl:62",
+    "statement": "The program named in PARMS is CALLed dynamically (CALL identifier); COBTUPDT's STOP RUN ends the run unit, so 'CBTRNDYN: END' is not reached.",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   },
+   {
+    "id": "GAP-006",
+    "description": "SQLCODEs come from Open COBOL ESQL over PostgreSQL, not Db2: unique violation -403, any other error -400, no row found 0 (+100 never raised). Under PostgreSQL a failed statement aborts the whole unit of work (d03: COBTUPDT's later UPDATE also fails); Db2 would roll back only the failed statement. The port reproduces the golden (PostgreSQL) behaviour; a savepoint-per-statement policy is a migration decision (ADR-007)."
+   },
+   {
+    "id": "GAP-007",
+    "description": "After CALL COBTUPDT the run unit ends at COBTUPDT's STOP RUN with COBTUPDT's RETURN-CODE, so CBTRNDYN's RC 8 from a failed EXECUTE is lost (d03 ends RC 4). Kept as observed (ADR-007)."
+   }
+  ]
+ }
+}

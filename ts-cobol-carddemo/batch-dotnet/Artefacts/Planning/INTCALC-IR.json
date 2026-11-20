@@ -1,0 +1,147 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "INTCALC",
+   "source_program": "CBACT04C",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "Monthly interest per transaction-category balance; interest transactions and account balance update.",
+   "source_evidence": [
+    "Discovery/Workloads/INTCALC-Jcl-Facts.md",
+    "Discovery/Programs/CBACT04C-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "STEP15 CBACT04C PARM=2022071800"
+  ],
+  "inputs": [
+   "TCATBALF (CVTRA01Y)",
+   "XREFFIL1: CARDXREF AIX path (CVACT03Y)",
+   "ACCTFILE I-O (CVACT01Y)",
+   "DISCGRP (CVTRA02Y)"
+  ],
+  "outputs": [
+   "TRANSACT: SYSTRAN(+1) (CVTRA05Y, 350)",
+   "ACCTFILE rewritten"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM CBACT04C",
+    "target_construct": "CardDemo.Batch.Programs.Cbact04c",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-INT-001",
+    "source": "app/cbl/CBACT04C.cbl:465",
+    "statement": "Interest is computed per TCATBALF record as (TRAN-CAT-BAL * DIS-INT-RATE) / 1200 with no ROUNDED phrase: the result is truncated to 2 decimals.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-002",
+    "source": "app/cbl/CBACT04C.cbl:214",
+    "statement": "Interest is only computed when the disclosure-group rate is non-zero.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-003",
+    "source": "app/cbl/CBACT04C.cbl:437",
+    "statement": "When the account's disclosure group is missing (status 23) the DEFAULT group is read.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-004",
+    "source": "app/cbl/CBACT04C.cbl:352",
+    "statement": "The accumulated interest is added to ACCT-CURR-BAL when the account changes.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-005",
+    "source": "app/cbl/CBACT04C.cbl:353",
+    "statement": "Cycle credit and cycle debit are reset to zero on account update.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-006",
+    "source": "app/cbl/CBACT04C.cbl:195",
+    "statement": "The account update is triggered only by an account break (first record suppressed); the last account at end-of-file is never updated (legacy quirk).",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-007",
+    "source": "app/cbl/CBACT04C.cbl:476",
+    "statement": "Interest transaction id = PARM date (10) + 6-digit running suffix.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-008",
+    "source": "app/cbl/CBACT04C.cbl:484",
+    "statement": "Interest transactions carry type 01, category 05, source 'System'.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-009",
+    "source": "app/cbl/CBACT04C.cbl:485",
+    "statement": "Description is 'Int. for a/c ' followed by the account id.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-010",
+    "source": "app/cbl/CBACT04C.cbl:497",
+    "statement": "Origin and processing timestamps are the DB2-format current timestamp (frozen clock in the harness).",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-011",
+    "source": "app/cbl/CBACT04C.cbl:38",
+    "statement": "The card number on the interest transaction comes from the XREF alternate index keyed by account id.",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   },
+   {
+    "id": "BR-INT-012",
+    "source": "app/cbl/CBACT04C.cbl:518",
+    "statement": "1400-COMPUTE-FEES is a placeholder with no logic (fees not implemented).",
+    "target": "src/CardDemo.Batch/Programs/Cbact04c.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-003",
+    "description": "XREF alternate index (account id) with duplicates: VSAM returns the first card in AIX order; the port returns the lowest card number for the account."
+   },
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   }
+  ]
+ }
+}

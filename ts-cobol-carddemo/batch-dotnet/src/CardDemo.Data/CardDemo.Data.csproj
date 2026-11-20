@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\CardDemo.Domain\CardDemo.Domain.csproj" />
+    <PackageReference Include="Npgsql" Version="8.0.5" />
+  </ItemGroup>
+</Project>

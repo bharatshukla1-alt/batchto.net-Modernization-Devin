@@ -1,0 +1,110 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "MNTTRDB2",
+   "source_program": "COBTUPDT",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "Weekly maintenance of the transaction-type reference table from an A/U/D file.",
+   "source_evidence": [
+    "Discovery/Workloads/MNTTRDB2-Jcl-Facts.md",
+    "Discovery/Programs/COBTUPDT-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "STEP1 IKJEFT01: DSN RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)"
+  ],
+  "inputs": [
+   "INPFILE (FB 53: type, code, description)",
+   "CARDDEMO.TRANSACTION_TYPE (Db2 -> PostgreSQL)"
+  ],
+  "outputs": [
+   "CARDDEMO.TRANSACTION_TYPE inserted/updated/deleted",
+   "SYSTSPRT messages",
+   "RC 4 on any SQL error"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM COBTUPDT",
+    "target_construct": "CardDemo.Batch.Programs.Cobtupdt",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-TUP-001",
+    "source": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl:85",
+    "statement": "OPEN FILE OK / NOT OK is displayed and the read loop runs either way (0001-OPEN-FILES falls through).",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-TUP-002",
+    "source": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl:110",
+    "statement": "Record type A inserts, U updates, D deletes, '*' is a comment; any other type is an error.",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-TUP-003",
+    "source": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl:146",
+    "statement": "INSERT/UPDATE bind the 2-character type code and the full 50-character description (trailing spaces stored).",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-TUP-004",
+    "source": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl:180",
+    "statement": "SQLCODE +100 on UPDATE/DELETE would report 'No records found.', but Open COBOL ESQL returns 0 when no row matches, so a missing row reports success (fixture t05).",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-TUP-005",
+    "source": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl:232",
+    "statement": "An error DISPLAYs WS-RETURN-MSG (never cleared), sets RETURN-CODE 4 and processing continues with the next record.",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   },
+   {
+    "id": "BR-TUP-006",
+    "source": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl:157",
+    "statement": "Negative SQLCODE message: 'Error accessing: TRANSACTION_TYPE table. SQLCODE:' followed by SQLCODE edited ----9.",
+    "target": "src/CardDemo.Batch/Programs/Db2Programs.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   },
+   {
+    "id": "GAP-006",
+    "description": "SQLCODEs come from Open COBOL ESQL over PostgreSQL, not Db2: unique violation -403, any other error -400, no row found 0 (+100 never raised). Under PostgreSQL a failed statement aborts the whole unit of work (d03: COBTUPDT's later UPDATE also fails); Db2 would roll back only the failed statement. The port reproduces the golden (PostgreSQL) behaviour; a savepoint-per-statement policy is a migration decision (ADR-007)."
+   }
+  ]
+ }
+}
