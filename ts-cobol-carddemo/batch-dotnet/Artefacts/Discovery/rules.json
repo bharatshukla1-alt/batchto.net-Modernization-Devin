@@ -1,0 +1,284 @@
+[
+  {
+    "id": "BR-RAC-001",
+    "program": "CBACT01C",
+    "line": 201,
+    "statement": "Each account is displayed field by field on SYSOUT."
+  },
+  {
+    "id": "BR-RAC-002",
+    "program": "CBACT01C",
+    "line": 237,
+    "statement": "OUTFILE carries the account with CURR-CYC-DEBIT packed (COMP-3); 2525.00 is moved only when the debit is zero."
+  },
+  {
+    "id": "BR-RAC-003",
+    "program": "CBACT01C",
+    "line": 231,
+    "statement": "The reissue date is reformatted by the assembler routine COBDATFT (type 2 in, type 2 out: YYYY-MM-DD -> YYYYMMDD)."
+  },
+  {
+    "id": "BR-RAC-004",
+    "program": "CBACT01C",
+    "line": 259,
+    "statement": "ARRYFILE: occurrence 1 and 2 copy the balance with debits 1005.00 / 1525.00; occurrence 3 is -1025.00 / -2500.00."
+  },
+  {
+    "id": "BR-RAC-005",
+    "program": "CBACT01C",
+    "line": 303,
+    "statement": "VBRCFILE receives a 12-byte and a 39-byte variable record per account."
+  },
+  {
+    "id": "BR-RCD-001",
+    "program": "CBACT02C",
+    "line": 78,
+    "statement": "Every card record is read sequentially by card number and displayed on SYSOUT."
+  },
+  {
+    "id": "BR-INT-001",
+    "program": "CBACT04C",
+    "line": 465,
+    "statement": "Interest is computed per TCATBALF record as (TRAN-CAT-BAL * DIS-INT-RATE) / 1200 with no ROUNDED phrase: the result is truncated to 2 decimals."
+  },
+  {
+    "id": "BR-INT-002",
+    "program": "CBACT04C",
+    "line": 214,
+    "statement": "Interest is only computed when the disclosure-group rate is non-zero."
+  },
+  {
+    "id": "BR-INT-003",
+    "program": "CBACT04C",
+    "line": 437,
+    "statement": "When the account's disclosure group is missing (status 23) the DEFAULT group is read."
+  },
+  {
+    "id": "BR-INT-004",
+    "program": "CBACT04C",
+    "line": 352,
+    "statement": "The accumulated interest is added to ACCT-CURR-BAL when the account changes."
+  },
+  {
+    "id": "BR-INT-005",
+    "program": "CBACT04C",
+    "line": 353,
+    "statement": "Cycle credit and cycle debit are reset to zero on account update."
+  },
+  {
+    "id": "BR-INT-006",
+    "program": "CBACT04C",
+    "line": 195,
+    "statement": "The account update is triggered only by an account break (first record suppressed); the last account at end-of-file is never updated (legacy quirk)."
+  },
+  {
+    "id": "BR-INT-007",
+    "program": "CBACT04C",
+    "line": 476,
+    "statement": "Interest transaction id = PARM date (10) + 6-digit running suffix."
+  },
+  {
+    "id": "BR-INT-008",
+    "program": "CBACT04C",
+    "line": 484,
+    "statement": "Interest transactions carry type 01, category 05, source 'System'."
+  },
+  {
+    "id": "BR-INT-009",
+    "program": "CBACT04C",
+    "line": 485,
+    "statement": "Description is 'Int. for a/c ' followed by the account id."
+  },
+  {
+    "id": "BR-INT-010",
+    "program": "CBACT04C",
+    "line": 497,
+    "statement": "Origin and processing timestamps are the DB2-format current timestamp (frozen clock in the harness)."
+  },
+  {
+    "id": "BR-INT-011",
+    "program": "CBACT04C",
+    "line": 38,
+    "statement": "The card number on the interest transaction comes from the XREF alternate index keyed by account id."
+  },
+  {
+    "id": "BR-INT-012",
+    "program": "CBACT04C",
+    "line": 518,
+    "statement": "1400-COMPUTE-FEES is a placeholder with no logic (fees not implemented)."
+  },
+  {
+    "id": "BR-PST-001",
+    "program": "CBTRN02C",
+    "line": 385,
+    "statement": "A daily transaction whose card number is not in XREF is rejected with reason 100 'INVALID CARD NUMBER FOUND'."
+  },
+  {
+    "id": "BR-PST-002",
+    "program": "CBTRN02C",
+    "line": 397,
+    "statement": "A transaction whose account is missing is rejected with reason 101 'ACCOUNT RECORD NOT FOUND'."
+  },
+  {
+    "id": "BR-PST-003",
+    "program": "CBTRN02C",
+    "line": 403,
+    "statement": "Credit limit check uses cycle amounts: limit >= cycle credit - cycle debit + amount, else reason 102 'OVERLIMIT TRANSACTION'."
+  },
+  {
+    "id": "BR-PST-004",
+    "program": "CBTRN02C",
+    "line": 414,
+    "statement": "Expiry check: account expiration date >= origin date (first 10 chars), else reason 103; 103 overwrites 102 when both fail."
+  },
+  {
+    "id": "BR-PST-005",
+    "program": "CBTRN02C",
+    "line": 448,
+    "statement": "Rejected transactions are written to DALYREJS as the 350-byte record plus an 80-byte trailer (reason 9(4) + description X(76))."
+  },
+  {
+    "id": "BR-PST-006",
+    "program": "CBTRN02C",
+    "line": 478,
+    "statement": "Missing (account, type, category) balance records are created with the transaction amount."
+  },
+  {
+    "id": "BR-PST-007",
+    "program": "CBTRN02C",
+    "line": 508,
+    "statement": "Existing category balances are incremented by the transaction amount."
+  },
+  {
+    "id": "BR-PST-008",
+    "program": "CBTRN02C",
+    "line": 548,
+    "statement": "The amount is added to ACCT-CURR-BAL; non-negative amounts to cycle credit, negative amounts to cycle debit."
+  },
+  {
+    "id": "BR-PST-009",
+    "program": "CBTRN02C",
+    "line": 438,
+    "statement": "Posted transactions get PROC-TS = current DB2-format timestamp."
+  },
+  {
+    "id": "BR-PST-010",
+    "program": "CBTRN02C",
+    "line": 256,
+    "statement": "TRANSACT is opened OUTPUT: the posted-transaction file is replaced by this run's postings."
+  },
+  {
+    "id": "BR-PST-011",
+    "program": "CBTRN02C",
+    "line": 230,
+    "statement": "Return code 4 when at least one transaction was rejected."
+  },
+  {
+    "id": "BR-RPT-001",
+    "program": "CBTRN03C",
+    "line": 221,
+    "statement": "Report period is read from DATEPARM (start date, filler, end date)."
+  },
+  {
+    "id": "BR-RPT-002",
+    "program": "CBTRN03C",
+    "line": 177,
+    "statement": "A transaction outside the period triggers NEXT SENTENCE, which leaves the whole PERFORM loop (no totals written) - legacy quirk."
+  },
+  {
+    "id": "BR-RPT-003",
+    "program": "CBTRN03C",
+    "line": 183,
+    "statement": "A change of card number writes the account total of the previous card (not before the first)."
+  },
+  {
+    "id": "BR-RPT-004",
+    "program": "CBTRN03C",
+    "line": 282,
+    "statement": "Every line counter multiple of the page size (20) writes page totals and new headers."
+  },
+  {
+    "id": "BR-RPT-005",
+    "program": "CBTRN03C",
+    "line": 297,
+    "statement": "Page totals roll into the grand total and reset; account totals reset but do not reset the page total."
+  },
+  {
+    "id": "BR-RPT-006",
+    "program": "CBTRN03C",
+    "line": 198,
+    "statement": "At end-of-file the last TRAN-AMT is added again to page and account totals before page and grand totals are written; the final account total is never written - legacy quirk."
+  },
+  {
+    "id": "BR-RPT-007",
+    "program": "CBTRN03C",
+    "line": 487,
+    "statement": "XREF, TRANTYPE and TRANCATG lookups that fail abend the program (U999)."
+  },
+  {
+    "id": "BR-RPT-008",
+    "program": "CBTRN03C",
+    "line": 370,
+    "statement": "The detail line carries id, account, type code/desc, category code/desc, source and the edited amount (-ZZZ,ZZZ,ZZZ.ZZ)."
+  },
+  {
+    "id": "BR-TUP-001",
+    "program": "COBTUPDT",
+    "line": 85,
+    "statement": "OPEN FILE OK / NOT OK is displayed and the read loop runs either way (0001-OPEN-FILES falls through)."
+  },
+  {
+    "id": "BR-TUP-002",
+    "program": "COBTUPDT",
+    "line": 110,
+    "statement": "Record type A inserts, U updates, D deletes, '*' is a comment; any other type is an error."
+  },
+  {
+    "id": "BR-TUP-003",
+    "program": "COBTUPDT",
+    "line": 146,
+    "statement": "INSERT/UPDATE bind the 2-character type code and the full 50-character description (trailing spaces stored)."
+  },
+  {
+    "id": "BR-TUP-004",
+    "program": "COBTUPDT",
+    "line": 180,
+    "statement": "SQLCODE +100 on UPDATE/DELETE would report 'No records found.', but Open COBOL ESQL returns 0 when no row matches, so a missing row reports success (fixture t05)."
+  },
+  {
+    "id": "BR-TUP-005",
+    "program": "COBTUPDT",
+    "line": 232,
+    "statement": "An error DISPLAYs WS-RETURN-MSG (never cleared), sets RETURN-CODE 4 and processing continues with the next record."
+  },
+  {
+    "id": "BR-TUP-006",
+    "program": "COBTUPDT",
+    "line": 157,
+    "statement": "Negative SQLCODE message: 'Error accessing: TRANSACTION_TYPE table. SQLCODE:' followed by SQLCODE edited ----9."
+  },
+  {
+    "id": "BR-DYN-001",
+    "program": "CBTRNDYN",
+    "line": 73,
+    "statement": "DYNSQL lines starting with '--' are skipped; columns 1-72 of the other lines are concatenated, each followed by one blank, into an 800-byte statement."
+  },
+  {
+    "id": "BR-DYN-002",
+    "program": "CBTRNDYN",
+    "line": 96,
+    "statement": "The statement is PREPAREd and EXECUTEd; the EXECUTE SQLCODE is displayed (statement errors surface at EXECUTE under ocesql)."
+  },
+  {
+    "id": "BR-DYN-003",
+    "program": "CBTRNDYN",
+    "line": 93,
+    "statement": "A failed PREPARE or EXECUTE sets RETURN-CODE 8 and processing continues."
+  },
+  {
+    "id": "BR-DYN-004",
+    "program": "CBTRNDYN",
+    "line": 62,
+    "statement": "The program named in PARMS is CALLed dynamically (CALL identifier); COBTUPDT's STOP RUN ends the run unit, so 'CBTRNDYN: END' is not reached."
+  }
+]

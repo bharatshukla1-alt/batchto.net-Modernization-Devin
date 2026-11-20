@@ -1,0 +1,258 @@
+{
+  "source": "app/scheduler/CardDemo.controlm",
+  "jobs": {
+    "CLOSEFIL": {
+      "folder": "MONTHLY-InterestCalculation",
+      "in": [],
+      "out": [
+        "MONTHLY-InterestCalculation-CLOSEFIL"
+      ],
+      "in_scope": false
+    },
+    "TRANBKP": {
+      "folder": "DAILY-TransactionBackup",
+      "in": [
+        "DAILY-TransactionBackup-CLOSEFIL"
+      ],
+      "out": [
+        "DAILY-TransactionBackup-TRANBKP"
+      ],
+      "in_scope": false
+    },
+    "WAITSTEP": {
+      "folder": "MONTHLY-InterestCalculation",
+      "in": [
+        "MONTHLY-InterestCalculation-COMBTRAN"
+      ],
+      "out": [
+        "MONTHLY-InterestCalculation-WAITSTEP"
+      ],
+      "in_scope": false
+    },
+    "OPENFIL": {
+      "folder": "MONTHLY-InterestCalculation",
+      "in": [
+        "MONTHLY-InterestCalculation-WAITSTEP"
+      ],
+      "out": [],
+      "in_scope": false
+    },
+    "MNTTRDB2": {
+      "folder": "WEEKLY-TransactionTypesDBRefresh",
+      "in": [],
+      "out": [
+        "WEEKLY-TransactionTypesDBRefresh-MNTTRDB2"
+      ],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "STEP1",
+          "exec": "PGM=IKJEFT01 (DSN RUN PROGRAM(COBTUPDT) L30)",
+          "line": 21
+        }
+      ]
+    },
+    "DISCGRP": {
+      "folder": "WEEKLY-DisclosureGroupsRefresh",
+      "in": [
+        "WEEKLY-DisclosureGroupsRefresh-CLOSEFIL"
+      ],
+      "out": [
+        "WEEKLY-DisclosureGroupsRefresh-DISCGRP"
+      ],
+      "in_scope": false
+    },
+    "TRANEXTR": {
+      "folder": "WEEKLY-DisclosureGroupsRefresh",
+      "in": [
+        "WEEKLY-TransactionTypesDBRefresh-MNTTRDB2"
+      ],
+      "out": [],
+      "in_scope": false
+    },
+    "INTCALC": {
+      "folder": "MONTHLY-InterestCalculation",
+      "in": [
+        "MONTHLY-InterestCalculation-CLOSEFIL"
+      ],
+      "out": [
+        "MONTHLY-InterestCalculation-INTCALC"
+      ],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "STEP15",
+          "exec": "PGM=CBACT04C",
+          "line": 22
+        }
+      ]
+    },
+    "COMBTRAN": {
+      "folder": "MONTHLY-InterestCalculation",
+      "in": [
+        "MONTHLY-InterestCalculation-INTCALC"
+      ],
+      "out": [
+        "MONTHLY-InterestCalculation-COMBTRAN"
+      ],
+      "in_scope": false
+    },
+    "READACCT": {
+      "folder": null,
+      "in": [],
+      "out": [],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "PREDEL",
+          "exec": "PGM=IEFBR14",
+          "line": 22
+        },
+        {
+          "step": "STEP05",
+          "exec": "PGM=CBACT01C",
+          "line": 32
+        }
+      ]
+    },
+    "READCARD": {
+      "folder": null,
+      "in": [],
+      "out": [],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "STEP05",
+          "exec": "PGM=CBACT02C",
+          "line": 22
+        }
+      ]
+    },
+    "POSTTRAN": {
+      "folder": null,
+      "in": [],
+      "out": [],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "STEP15",
+          "exec": "PGM=CBTRN02C",
+          "line": 23
+        }
+      ]
+    },
+    "TRANREPT": {
+      "folder": null,
+      "in": [],
+      "out": [],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "STEP05R",
+          "exec": "PROC=REPROC",
+          "line": 23
+        },
+        {
+          "step": "STEP05R",
+          "exec": "PGM=SORT",
+          "line": 37
+        },
+        {
+          "step": "STEP10R",
+          "exec": "PGM=CBTRN03C",
+          "line": 59
+        }
+      ]
+    },
+    "MNTTRDYN": {
+      "folder": null,
+      "in": [],
+      "out": [],
+      "in_scope": true,
+      "steps": [
+        {
+          "step": "STEP1",
+          "exec": "PGM=IKJEFT01 (DSN RUN PROGRAM(CBTRNDYN) L33)",
+          "line": 23
+        }
+      ]
+    }
+  },
+  "edges": [
+    {
+      "from": "CLOSEFIL",
+      "to": "TRANBKP",
+      "condition": "DAILY-TransactionBackup-CLOSEFIL"
+    },
+    {
+      "from": "TRANBKP",
+      "to": "WAITSTEP",
+      "condition": "DAILY-TransactionBackup-TRANBKP"
+    },
+    {
+      "from": "WAITSTEP",
+      "to": "OPENFIL",
+      "condition": "DAILY-TransactionBackup-WAITSTEP"
+    },
+    {
+      "from": "MNTTRDB2",
+      "to": "CLOSEFIL",
+      "condition": "WEEKLY-TransactionTypesDBRefresh-MNTTRDB2"
+    },
+    {
+      "from": "CLOSEFIL",
+      "to": "DISCGRP",
+      "condition": "WEEKLY-DisclosureGroupsRefresh-CLOSEFIL"
+    },
+    {
+      "from": "DISCGRP",
+      "to": "WAITSTEP",
+      "condition": "WEEKLY-DisclosureGroupsRefresh-DISCGRP"
+    },
+    {
+      "from": "WAITSTEP",
+      "to": "OPENFIL",
+      "condition": "WEEKLY-DisclosureGroupsRefresh-WAITSTEP"
+    },
+    {
+      "from": "MNTTRDB2",
+      "to": "TRANEXTR",
+      "condition": "WEEKLY-TransactionTypesDBRefresh-MNTTRDB2"
+    },
+    {
+      "from": "CLOSEFIL",
+      "to": "INTCALC",
+      "condition": "MONTHLY-InterestCalculation-CLOSEFIL"
+    },
+    {
+      "from": "INTCALC",
+      "to": "COMBTRAN",
+      "condition": "MONTHLY-InterestCalculation-INTCALC"
+    },
+    {
+      "from": "COMBTRAN",
+      "to": "WAITSTEP",
+      "condition": "MONTHLY-InterestCalculation-COMBTRAN"
+    },
+    {
+      "from": "WAITSTEP",
+      "to": "OPENFIL",
+      "condition": "MONTHLY-InterestCalculation-WAITSTEP"
+    }
+  ],
+  "harness_chains": {
+    "posting": [
+      "POSTTRAN",
+      "TRANREPT"
+    ],
+    "interest": [
+      "INTCALC"
+    ],
+    "trantype-update": [
+      "MNTTRDB2"
+    ],
+    "trantype-dynamic": [
+      "MNTTRDYN"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+# INTCALC - JCL facts
+
+Source: `app/jcl/INTCALC.jcl` (read-only estate).
+
+| Step | Line | Program/Proc | PARM | DD | DSN | DISP | DCB |
+|---|---|---|---|---|---|---|---|
+| STEP15 | L22 | PGM=CBACT04C | 2022071800 | STEPLIB (L23) | AWS.M2.CARDDEMO.LOADLIB | SHR |  |
+| | | | | SYSPRINT (L25) | SYSOUT |  |  |
+| | | | | SYSOUT (L26) | SYSOUT |  |  |
+| | | | | TCATBALF (L27) | AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS | SHR |  |
+| | | | | XREFFILE (L29) | AWS.M2.CARDDEMO.CARDXREF.VSAM.KSDS | SHR |  |
+| | | | | XREFFIL1 (L31) | AWS.M2.CARDDEMO.CARDXREF.VSAM.AIX.PATH | SHR |  |
+| | | | | ACCTFILE (L33) | AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS | SHR |  |
+| | | | | DISCGRP (L35) | AWS.M2.CARDDEMO.DISCGRP.VSAM.KSDS | SHR |  |
+| | | | | TRANSACT (L37) | AWS.M2.CARDDEMO.SYSTRAN(+1) | (NEW,CATLG,DELETE) | (RECFM=F,LRECL=350,BLKSIZE=0) |

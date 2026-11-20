@@ -1,0 +1,73 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "READCARD",
+   "source_program": "CBACT02C",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "List the card master in key order.",
+   "source_evidence": [
+    "Discovery/Workloads/READCARD-Jcl-Facts.md",
+    "Discovery/Programs/CBACT02C-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "STEP05 CBACT02C"
+  ],
+  "inputs": [
+   "CARDFILE: CARDDATA.VSAM.KSDS (CVACT02Y, 150)"
+  ],
+  "outputs": [
+   "SYSOUT listing"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM CBACT02C",
+    "target_construct": "CardDemo.Batch.Programs.Cbact02c",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-RCD-001",
+    "source": "app/cbl/CBACT02C.cbl:78",
+    "statement": "Every card record is read sequentially by card number and displayed on SYSOUT.",
+    "target": "src/CardDemo.Batch/Programs/ReadPrograms.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   }
+  ]
+ }
+}

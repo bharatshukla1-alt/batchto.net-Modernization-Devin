@@ -1,0 +1,108 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "READACCT",
+   "source_program": "CBACT01C",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "Extract every account to three sequential formats and list it on SYSOUT.",
+   "source_evidence": [
+    "Discovery/Workloads/READACCT-Jcl-Facts.md",
+    "Discovery/Programs/CBACT01C-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "PREDEL (IEFBR14)",
+   "STEP05 CBACT01C"
+  ],
+  "inputs": [
+   "ACCTFILE: ACCTDATA.VSAM.KSDS (CVACT01Y, 300)"
+  ],
+  "outputs": [
+   "OUTFILE: ACCTDATA.PSCOMP (107, COMP-3 cycle debit)",
+   "ARRYFILE: ACCTDATA.ARRYPS (110, OCCURS 5)",
+   "VBRCFILE: ACCTDATA.VBPS (VB 12/39 + RDW)"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM CBACT01C",
+    "target_construct": "CardDemo.Batch.Programs.Cbact01c",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-RAC-001",
+    "source": "app/cbl/CBACT01C.cbl:201",
+    "statement": "Each account is displayed field by field on SYSOUT.",
+    "target": "src/CardDemo.Batch/Programs/ReadPrograms.cs"
+   },
+   {
+    "id": "BR-RAC-002",
+    "source": "app/cbl/CBACT01C.cbl:237",
+    "statement": "OUTFILE carries the account with CURR-CYC-DEBIT packed (COMP-3); 2525.00 is moved only when the debit is zero.",
+    "target": "src/CardDemo.Batch/Programs/ReadPrograms.cs"
+   },
+   {
+    "id": "BR-RAC-003",
+    "source": "app/cbl/CBACT01C.cbl:231",
+    "statement": "The reissue date is reformatted by the assembler routine COBDATFT (type 2 in, type 2 out: YYYY-MM-DD -> YYYYMMDD).",
+    "target": "src/CardDemo.Batch/Programs/ReadPrograms.cs"
+   },
+   {
+    "id": "BR-RAC-004",
+    "source": "app/cbl/CBACT01C.cbl:259",
+    "statement": "ARRYFILE: occurrence 1 and 2 copy the balance with debits 1005.00 / 1525.00; occurrence 3 is -1025.00 / -2500.00.",
+    "target": "src/CardDemo.Batch/Programs/ReadPrograms.cs"
+   },
+   {
+    "id": "BR-RAC-005",
+    "source": "app/cbl/CBACT01C.cbl:303",
+    "statement": "VBRCFILE receives a 12-byte and a 39-byte variable record per account.",
+    "target": "src/CardDemo.Batch/Programs/ReadPrograms.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-001",
+    "description": "COBDATFT is HLASM (app/asm/COBDATFT.asm) and is not built into the GnuCOBOL loadlib, so READACCT cannot run on the harness; the .NET port follows the assembler source (VALIDIN2 path) and is proven by unit tests, not by golden files."
+   },
+   {
+    "id": "GAP-002",
+    "description": "OUT-ACCT-CURR-CYC-DEBIT is only moved when the debit is zero; otherwise the FD buffer keeps the previous record's value. The .NET port reproduces 'carry previous value' (initial value 0)."
+   },
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   }
+  ]
+ }
+}

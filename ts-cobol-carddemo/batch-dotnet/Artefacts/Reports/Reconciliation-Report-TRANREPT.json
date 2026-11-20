@@ -1,0 +1,191 @@
+[
+ {
+  "case": "posting/p01-baseline-mixed",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ },
+ {
+  "case": "posting/p02-invalid-card",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ },
+ {
+  "case": "posting/p03-account-missing",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ },
+ {
+  "case": "posting/p04-overlimit-reject",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ },
+ {
+  "case": "posting/p05-expired-account",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ },
+ {
+  "case": "posting/p06-credits-new-category",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ },
+ {
+  "case": "posting/p07-empty-day",
+  "levels": {
+   "L1": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 1,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 0,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {},
+  "passed": true
+ }
+]

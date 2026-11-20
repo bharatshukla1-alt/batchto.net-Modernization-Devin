@@ -1,0 +1,288 @@
+[
+ {
+  "case": "posting/p01-baseline-mixed",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 12,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "1690.00",
+    "ACCT-CURR-CYC-CREDIT": "205.25",
+    "ACCT-CURR-CYC-DEBIT": "-215.75"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {},
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "1690.00"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {
+    "TRAN-AMT": "-10.50"
+   }
+  },
+  "passed": true
+ },
+ {
+  "case": "posting/p02-invalid-card",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 16,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "542.00",
+    "ACCT-CURR-CYC-CREDIT": "42.00",
+    "ACCT-CURR-CYC-DEBIT": "0.00"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {
+    "DALYTRAN-AMT": "99.99"
+   },
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "542.00"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {
+    "TRAN-AMT": "42.00"
+   }
+  },
+  "passed": true
+ },
+ {
+  "case": "posting/p03-account-missing",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 16,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "520.00",
+    "ACCT-CURR-CYC-CREDIT": "20.00",
+    "ACCT-CURR-CYC-DEBIT": "0.00"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {
+    "DALYTRAN-AMT": "10.00"
+   },
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "520.00"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {
+    "TRAN-AMT": "20.00"
+   }
+  },
+  "passed": true
+ },
+ {
+  "case": "posting/p04-overlimit-reject",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 16,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "1000.00",
+    "ACCT-CURR-CYC-CREDIT": "1000.00",
+    "ACCT-CURR-CYC-DEBIT": "0.00"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {
+    "DALYTRAN-AMT": "100.00"
+   },
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "1000.00"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {
+    "TRAN-AMT": "50.00"
+   }
+  },
+  "passed": true
+ },
+ {
+  "case": "posting/p05-expired-account",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 16,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "230.00",
+    "ACCT-CURR-CYC-CREDIT": "30.00",
+    "ACCT-CURR-CYC-DEBIT": "0.00"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {
+    "DALYTRAN-AMT": "30.00"
+   },
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "230.00"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {
+    "TRAN-AMT": "30.00"
+   }
+  },
+  "passed": true
+ },
+ {
+  "case": "posting/p06-credits-new-category",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 12,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "534.50",
+    "ACCT-CURR-CYC-CREDIT": "860.00",
+    "ACCT-CURR-CYC-DEBIT": "-325.50"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {},
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "534.50"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {
+    "TRAN-AMT": "-265.50"
+   }
+  },
+  "passed": true
+ },
+ {
+  "case": "posting/p07-empty-day",
+  "levels": {
+   "L1": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L2": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L3": {
+    "checks": 4,
+    "failures": 0
+   },
+   "L4": {
+    "checks": 9,
+    "failures": 0
+   },
+   "L5": {
+    "checks": 2,
+    "failures": 0
+   }
+  },
+  "control_totals": {
+   "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS": {
+    "ACCT-CURR-BAL": "500.00",
+    "ACCT-CURR-CYC-CREDIT": "0.00",
+    "ACCT-CURR-CYC-DEBIT": "0.00"
+   },
+   "AWS.M2.CARDDEMO.DALYREJS.G0001V00": {},
+   "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS": {
+    "TRAN-CAT-BAL": "500.00"
+   },
+   "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS": {}
+  },
+  "passed": true
+ }
+]

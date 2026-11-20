@@ -1,0 +1,138 @@
+{
+ "target_design_specification": {
+  "document_metadata": {
+   "document_type": "Mainframe Batch To .NET 8 Target Design Specification",
+   "workload": "POSTTRAN",
+   "source_program": "CBTRN02C",
+   "confidence_level": "HIGH"
+  },
+  "source_system_summary": {
+   "application_name": "CardDemo",
+   "processing_description": "Validate and post the daily transactions; rejects with reason codes 100-103.",
+   "source_evidence": [
+    "Discovery/Workloads/POSTTRAN-Jcl-Facts.md",
+    "Discovery/Programs/CBTRN02C-Program-Facts.md"
+   ]
+  },
+  "steps": [
+   "STEP15 CBTRN02C"
+  ],
+  "inputs": [
+   "DALYTRAN.PS (CVTRA06Y, 350)",
+   "XREFFILE (CVACT03Y)",
+   "ACCTFILE I-O",
+   "TCATBALF I-O"
+  ],
+  "outputs": [
+   "TRANFILE: TRANSACT.VSAM.KSDS (OPEN OUTPUT)",
+   "DALYREJS(+1) (REJTRAN, 430)",
+   "RC 4 when rejects"
+  ],
+  "mainframe_to_dotnet_mapping": [
+   {
+    "source_construct": "VSAM KSDS",
+    "target_construct": "CardDemo.Data.KeyedStore (PostgreSQL vsam_* table)",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "QSAM FB/VB dataset, GDG",
+    "target_construct": "SequentialFile + DatasetCatalog",
+    "adr": "ADR-006"
+   },
+   {
+    "source_construct": "COPYBOOK",
+    "target_construct": "CardDemo.Domain.Layouts (generated) + FixedRecord",
+    "adr": "ADR-002"
+   },
+   {
+    "source_construct": "COMP-3 / zoned / COMP",
+    "target_construct": "CobolCodec (decimal)",
+    "adr": "ADR-003"
+   },
+   {
+    "source_construct": "PROGRAM CBTRN02C",
+    "target_construct": "CardDemo.Batch.Programs.Cbtrn02c",
+    "adr": "ADR-001"
+   },
+   {
+    "source_construct": "JCL job / step / DD",
+    "target_construct": "CardDemo.Orchestration.JobCatalog + JobRunner",
+    "adr": "ADR-005"
+   }
+  ],
+  "business_rules": [
+   {
+    "id": "BR-PST-001",
+    "source": "app/cbl/CBTRN02C.cbl:385",
+    "statement": "A daily transaction whose card number is not in XREF is rejected with reason 100 'INVALID CARD NUMBER FOUND'.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-002",
+    "source": "app/cbl/CBTRN02C.cbl:397",
+    "statement": "A transaction whose account is missing is rejected with reason 101 'ACCOUNT RECORD NOT FOUND'.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-003",
+    "source": "app/cbl/CBTRN02C.cbl:403",
+    "statement": "Credit limit check uses cycle amounts: limit >= cycle credit - cycle debit + amount, else reason 102 'OVERLIMIT TRANSACTION'.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-004",
+    "source": "app/cbl/CBTRN02C.cbl:414",
+    "statement": "Expiry check: account expiration date >= origin date (first 10 chars), else reason 103; 103 overwrites 102 when both fail.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-005",
+    "source": "app/cbl/CBTRN02C.cbl:448",
+    "statement": "Rejected transactions are written to DALYREJS as the 350-byte record plus an 80-byte trailer (reason 9(4) + description X(76)).",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-006",
+    "source": "app/cbl/CBTRN02C.cbl:478",
+    "statement": "Missing (account, type, category) balance records are created with the transaction amount.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-007",
+    "source": "app/cbl/CBTRN02C.cbl:508",
+    "statement": "Existing category balances are incremented by the transaction amount.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-008",
+    "source": "app/cbl/CBTRN02C.cbl:548",
+    "statement": "The amount is added to ACCT-CURR-BAL; non-negative amounts to cycle credit, negative amounts to cycle debit.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-009",
+    "source": "app/cbl/CBTRN02C.cbl:438",
+    "statement": "Posted transactions get PROC-TS = current DB2-format timestamp.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-010",
+    "source": "app/cbl/CBTRN02C.cbl:256",
+    "statement": "TRANSACT is opened OUTPUT: the posted-transaction file is replaced by this run's postings.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   },
+   {
+    "id": "BR-PST-011",
+    "source": "app/cbl/CBTRN02C.cbl:230",
+    "statement": "Return code 4 when at least one transaction was rejected.",
+    "target": "src/CardDemo.Batch/Programs/Cbtrn02c.cs"
+   }
+  ],
+  "gaps": [
+   {
+    "id": "GAP-004",
+    "description": "Plugin numeric convention prescribes MidpointRounding.AwayFromZero; the legacy source has no ROUNDED and golden fixtures prove truncation (i02-tie-half-cent). Legacy truncation is kept (ADR-003)."
+   }
+  ]
+ }
+}
